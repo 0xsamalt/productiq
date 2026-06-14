@@ -1,4 +1,5 @@
 """Server-rendered HTML pages (Jinja)."""
+from typing import Optional
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
@@ -13,9 +14,28 @@ def _templates(request: Request):
 
 
 @router.get("/", response_class=HTMLResponse)
-def index(request: Request, session: Session = Depends(get_session)):
-    products = session.exec(select(Product).order_by(Product.created_at.desc())).all()
-    return _templates(request).TemplateResponse(request, "index.html", {"products": products})
+def index(
+    request: Request,
+    q: Optional[str] = None,
+    session: Session = Depends(get_session),
+):
+    if q:
+        products = session.exec(
+            select(Product)
+            .where(
+                (Product.name.ilike(f"%{q}%"))
+                | (Product.category.ilike(f"%{q}%"))
+            )
+            .order_by(Product.created_at.desc())
+        ).all()
+    else:
+        products = session.exec(select(Product).order_by(Product.created_at.desc())).all()
+
+    return _templates(request).TemplateResponse(
+        request,
+        "index.html",
+        {"products": products, "q": q},
+    )
 
 
 @router.get("/p/{product_id}", response_class=HTMLResponse)

@@ -8,7 +8,35 @@
   </p>
 </section>
 
-<section>
+<section class="mb-6">
+  <form method="GET" action="" class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+    <label for="search-q" class="sr-only">Search products</label>
+    <input
+      id="search-q"
+      name="q"
+      type="search"
+      value="{{ q if q else '' }}"
+      placeholder="Search products by name or category"
+      class="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
+    />
+    <div class="flex gap-2">
+      <button
+        type="submit"
+        class="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
+      >
+        Search
+      </button>
+      {% if q %}
+        <a
+          href="/"
+          class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
+        >
+          Clear
+        </a>
+      {% endif %}
+    </div>
+  </form>
+
   <h2 class="text-lg font-semibold mb-4">Products on MANTIS</h2>
   {% if products %}
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
