@@ -10,6 +10,7 @@ from ..models import Document, Product
 from ..config import settings
 from ..moss_service import add_chunks, ensure_shared_index
 from ..pdf_parser import parse_pdf, parse_text
+from .. import youtube_ingest
 
 router = APIRouter()
 
@@ -94,15 +95,41 @@ async def upload_link(
     product = session.get(Product, product_id)
     if not product:
         raise HTTPException(404, "Product not found")
+
+    is_youtube = youtube_ingest.is_youtube_url(url)
     doc = Document(
         product_id=product_id,
         filename=title or url,
-        kind="link",
+        kind="video" if is_youtube else "link",
         url=url,
     )
     session.add(doc)
     session.commit()
     session.refresh(doc)
+
+    # YouTube: fetch transcript via youtube-transcript-api and chunk it with timestamps.
+    # If transcription fails (no captions / region-blocked), keep the link as
+    # a non-indexed attachment rather than rejecting the whole upload.
+    ingest_error: str | None = None
+    if is_youtube:
+        try:
+            chunks = youtube_ingest.fetch_chunks(url, doc.id, title or url)
+            if chunks:
+                await ensure_shared_index()
+                added = await add_chunks(product_id, chunks)
+                doc.chunk_count = added
+                doc.indexed = True
+                session.add(doc)
+                session.commit()
+        except Exception as e:
+            ingest_error = str(e)
+
     if _wants_html(request):
         return RedirectResponse(f"/company/{product.company_id}", status_code=303)
-    return JSONResponse({"ok": True, "document_id": doc.id})
+    return JSONResponse({
+        "ok": True,
+        "document_id": doc.id,
+        "kind": doc.kind,
+        "chunk_count": doc.chunk_count,
+        "ingest_error": ingest_error,
+    })

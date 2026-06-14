@@ -14,6 +14,9 @@ huggingface_hub>=0.27.0
 # PDF + text parsing
 pypdf>=5.0.0
 
+# YouTube transcript ingestion (extracts auto-captions for video links)
+youtube-transcript-api>=0.6.2
+
 # image handling
 Pillow>=10.4.0
 
