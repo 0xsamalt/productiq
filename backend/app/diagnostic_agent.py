@@ -86,6 +86,29 @@ async def diagnose(
 
     product_block = f"Product: {product_name}\nDescription: {product_description.strip() or '(none)'}"
 
+    # Turn budget: count how many follow-up questions we've already asked.
+    # We don't track the assistant's prior [ASK]/[DIAGNOSE] mode in history
+    # (it's stripped before being shown back), so use user-message count as a
+    # proxy. The current message itself counts.
+    user_turn_count = sum(1 for m in history if m.get("role") == "user") + 1
+
+    MAX_ASK_TURNS = 3
+    if user_turn_count <= 1:
+        turn_directive = "First turn — start the diagnostic protocol."
+    elif user_turn_count < MAX_ASK_TURNS:
+        turn_directive = (
+            f"Turn {user_turn_count}. You may still [ASK] one more follow-up "
+            f"if it would meaningfully narrow the cause. Otherwise, commit to a [DIAGNOSE]."
+        )
+    else:
+        turn_directive = (
+            f"Turn {user_turn_count}. You have already asked enough questions. "
+            f"You MUST output [DIAGNOSE] now. Commit to the most-likely cause given "
+            f"everything the user has said so far, even if your confidence is moderate. "
+            f"State your confidence (high / medium / low) at the end, and what one piece "
+            f"of additional info would have raised it to high — but do not ask another question."
+        )
+
     messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
     for m in history:
         messages.append({"role": m["role"], "content": m["content"]})
@@ -93,6 +116,7 @@ async def diagnose(
         "role": "user",
         "content": (
             f"{product_block}\n\n"
+            f"TURN BUDGET: {turn_directive}\n\n"
             f"RETRIEVED DOC EXCERPTS:\n{evidence}\n\n"
             f"USER MESSAGE: {user_message}"
         ),
