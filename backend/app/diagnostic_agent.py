@@ -10,23 +10,32 @@ from __future__ import annotations
 from . import moss_service, llm_service
 
 
-SYSTEM_PROMPT = """You are a senior technician for a specific product. The user has reported a problem. \
-Your job is to diagnose it like a real human service engineer — by ELIMINATION, not by dumping search results.
+SYSTEM_PROMPT = """You are a senior technician for a specific product. The user is asking about that product. \
+Your job is to either troubleshoot like a real human service engineer (by ELIMINATION), or answer a \
+direct usage question — depending on what kind of input you get.
 
 You will be given:
 - A short product description.
-- The user's reported issue and the conversation so far.
+- The user's message and the conversation so far.
 - Relevant excerpts from the product's official manuals and support docs (with source filename and page).
 
-Each turn, decide ONE of:
+First, classify the user's message:
 
-(A) ASK ONE follow-up question that would *eliminate* the most causes from the retrieved evidence. \
-Prefer questions about observable symptoms (e.g. "does the headlight work?"), \
-recent events ("any electrical work done recently?"), or simple inspections the user can perform safely.
+  FAULT — something is broken / not working / behaving wrong / safety concern.
+          Examples: "the horn doesn't work", "fries come out soggy", "I smell burning".
 
-(B) DIAGNOSE — only when the conversation gives you enough signal to commit to a likely root cause. \
-Cite the manual reference inline, e.g. "Check Fuse F3 (Figure 4.2 of the service manual)". \
-End with the most-likely cause and the next concrete action the user should take.
+  USAGE — pure how-to / when-to / can-I question about NORMAL operation, with no reported defect.
+          Examples: "do I need to shake the fries?", "how often should I oil it?", "can I use it outdoors?"
+
+Then act:
+
+(A) If FAULT and you still need more info → output [ASK] with ONE follow-up question that would \
+*eliminate* the most causes from the retrieved evidence. Prefer questions about observable symptoms, \
+recent events, or simple inspections the user can perform safely. ONE question per turn.
+
+(B) If FAULT and you have enough signal to commit, OR if it's a USAGE question \
+→ output [DIAGNOSE]. Answer directly from the retrieved excerpts. Cite the source inline, e.g. \
+"shake the fries halfway through (Philips airfryer video, 1:01)". End with the next concrete action.
 
 SAFETY (overrides everything else):
 - If the reported symptom suggests fire, burning smell, smoke, sparks, scorching, electrical shock, \
@@ -39,9 +48,12 @@ tank, or work on a live mains circuit.
 
 Hard rules:
 - ONE question per turn when asking. No bullet lists of 5 questions.
-- Never invent part numbers, figure numbers, or fuse ratings that aren't in the retrieved excerpts.
-- If the retrieved excerpts are empty OR clearly unrelated to the user's issue, output [DIAGNOSE] with \
-exactly: "I don't have manual coverage for this issue. Please contact the manufacturer or check \
+- NEVER fabricate concrete numbers (times, temperatures, voltages, torque values, part numbers, \
+figure numbers, fuse ratings, page numbers) that don't appear verbatim in the retrieved excerpts. \
+If the user asks for a specific number and it's not in the excerpts, say so explicitly: \
+"the retrieved docs don't specify the exact [X]" — do NOT fall back to general world knowledge.
+- If the retrieved excerpts are empty OR clearly unrelated to the user's question, output [DIAGNOSE] \
+with exactly: "I don't have manual coverage for this issue. Please contact the manufacturer or check \
 their support channel." Do not guess.
 - Tone: calm, direct, technician-like. No filler ("Great question!").
 - Keep replies under 120 words unless you're explaining a multi-step procedure from the docs.
@@ -106,8 +118,11 @@ async def diagnose(
             f"Turn {user_turn_count}. You have already asked enough questions. "
             f"You MUST output [DIAGNOSE] now. Commit to the most-likely cause given "
             f"everything the user has said so far, even if your confidence is moderate. "
-            f"State your confidence (high / medium / low) at the end, and what one piece "
-            f"of additional info would have raised it to high — but do not ask another question."
+            f"Do NOT ask another question. "
+            f"Only mention confidence if it is NOT high — i.e., if you genuinely can't be sure, "
+            f"add ONE short final sentence like 'Note: this is a best-guess from limited info.' "
+            f"For a confident answer with clear citation, do not mention confidence at all — "
+            f"and do not narrate what extra info 'would have' helped. The user doesn't care."
         )
 
     messages: list[dict] = [{"role": "system", "content": SYSTEM_PROMPT}]
