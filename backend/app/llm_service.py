@@ -48,6 +48,31 @@ def chat_stream(messages: list[dict], temperature: float = 0.2, max_tokens: int 
             yield delta
 
 
+def rewrite_for_retrieval(user_messages: list[str], product_name: str) -> str:
+    """Convert the user's recent message(s) — any language — into a concise English
+    search phrase suitable for retrieval against English-language manuals.
+
+    Why: moss-minilm is English-leaning; a Hindi/Tamil query against an English
+    manual would miss. We translate ONLY for retrieval; the user still gets a
+    reply in their own language (handled in the diagnostic prompt)."""
+    joined = "\n".join(m.strip() for m in user_messages if m and m.strip())
+    if not joined:
+        return ""
+    prompt = (
+        f"You are a search-query optimizer. The user is troubleshooting their {product_name}. "
+        "Convert the following message(s) into a SHORT English search phrase that captures "
+        "the key technical symptoms (parts, error codes, observable behavior). "
+        "If the message is already English, return its key search terms. "
+        "Output ONLY the search query — no quotes, no commentary, no preface.\n\n"
+        f"USER MESSAGES:\n{joined}\n\n"
+        "ENGLISH SEARCH QUERY:"
+    )
+    try:
+        return chat([{"role": "user", "content": prompt}], temperature=0.0, max_tokens=80).strip()
+    except Exception:
+        return joined  # fall back so retrieval still runs
+
+
 def chat_with_image(
     user_text: str,
     image_bytes: bytes,

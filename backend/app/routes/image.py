@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from sqlmodel import Session
 from ..db import get_session
 from ..models import Product, ChatMessage
-from ..llm_service import chat_with_image
+from ..llm_service import chat_with_image, rewrite_for_retrieval
 from ..diagnostic_agent import SYSTEM_PROMPT
 from ..moss_service import query as moss_query
 
@@ -29,20 +29,35 @@ async def diagnose_image(
     mime = file.content_type or "image/png"
 
     # Step 1 — let Gemma describe what it sees so we can retrieve relevant docs.
+    # Important: the description is shown BACK to the user (chat.js prepends
+    # "What I see in the image:") so it must be in the user's language.
     description_prompt = (
-        "You are looking at a photo a user uploaded of their product issue. "
-        "In 1-2 sentences, describe what is visible: error codes, warning lights, "
-        "damaged components, part labels. Be concrete, no speculation."
+        f"You are looking at a photo a user uploaded showing an issue with their "
+        f"{product.name} ({product.category}). Product description: "
+        f"{product.description or '(none provided)'}.\n\n"
+        f"Assume the photo shows some part of THIS product (not a different device). "
+        f"In 2-3 sentences, describe concretely what is visible: error codes / warning "
+        f"lights / labels / damaged components / corrosion / disconnected wires / "
+        f"foreign material.\n\n"
+        f"OUTPUT RULES — read carefully:\n"
+        f"1. If a 'User's note' is provided below, detect the language of that note. "
+        f"Write your entire description in THAT SAME language, with no English preamble or explanation.\n"
+        f"2. If there is no user note, write in English.\n"
+        f"3. Keep part numbers, error codes, and printed labels (text shown in the image) in their original form.\n"
+        f"4. Do NOT include any phrase like 'in English' or 'in Hindi' in your output. Just write the description directly."
     )
+    user_text = description_prompt + (f"\n\nUser's note: {note}" if note else "\n\n(no user note)")
     visible = chat_with_image(
-        user_text=description_prompt + (f"\nUser also wrote: {note}" if note else ""),
+        user_text=user_text,
         image_bytes=image_bytes,
         image_mime=mime,
-        max_tokens=200,
+        max_tokens=250,
     ).strip()
 
-    # Step 2 — retrieve from Moss using both the vision description and the user note.
-    retrieval_q = (visible + " " + note).strip() or "device error"
+    # Step 2 — retrieve from Moss. The vision description is already English; the
+    # user's note might be in any language, so route it through the rewriter so
+    # the search phrase Moss sees is consistently English.
+    retrieval_q = rewrite_for_retrieval([visible, note], product.name) or (visible + " " + note).strip() or "device error"
     chunks = await moss_query(product.id, retrieval_q, top_k=6)
 
     evidence = "\n\n".join(
@@ -58,7 +73,11 @@ async def diagnose_image(
         f"WHAT THE IMAGE SHOWS (your own description):\n{visible}\n\n"
         f"USER'S NOTE: {note or '(none)'}\n\n"
         f"RETRIEVED DOC EXCERPTS:\n{evidence}\n\n"
-        "Now apply the diagnostic protocol. Start with [ASK] or [DIAGNOSE]."
+        "Now apply the diagnostic protocol. Start with [ASK] or [DIAGNOSE].\n"
+        "LANGUAGE: Respond in the SAME LANGUAGE as the USER'S NOTE above. "
+        "If the note is empty, default to English. Keep manual part numbers, "
+        "error codes, and section labels in their original form. The [ASK]/[DIAGNOSE] "
+        "prefix itself must stay in English (the UI parses it)."
     )
     reply = chat_with_image(
         user_text=user_block,

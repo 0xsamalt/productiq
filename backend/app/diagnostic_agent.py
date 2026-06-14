@@ -78,9 +78,10 @@ async def diagnose(
           "citations": [ {source, page, score, text} ],
         }
     """
-    retrieval_query = "\n".join(
-        [m["content"] for m in history if m.get("role") == "user"][-3:] + [user_message]
-    )
+    # Multilingual: ask Gemma to rewrite the user's recent turns into an English
+    # search phrase before hitting Moss (moss-minilm is English-leaning).
+    recent_user_msgs = [m["content"] for m in history if m.get("role") == "user"][-3:] + [user_message]
+    retrieval_query = llm_service.rewrite_for_retrieval(recent_user_msgs, product_name)
     chunks = await moss_service.query(product_id, retrieval_query, top_k=top_k)
     evidence = _format_evidence(chunks)
 
@@ -118,7 +119,11 @@ async def diagnose(
             f"{product_block}\n\n"
             f"TURN BUDGET: {turn_directive}\n\n"
             f"RETRIEVED DOC EXCERPTS:\n{evidence}\n\n"
-            f"USER MESSAGE: {user_message}"
+            f"USER MESSAGE: {user_message}\n\n"
+            "LANGUAGE: Respond in the SAME LANGUAGE the user wrote in. "
+            "If the user wrote in Hindi, reply in Hindi. Spanish → Spanish. "
+            "Keep manual part numbers, error codes, and section labels in their original form. "
+            "The [ASK]/[DIAGNOSE] prefix itself must stay in English (the UI parses it)."
         ),
     })
 
