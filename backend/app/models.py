@@ -35,3 +35,12 @@ class Document(SQLModel, table=True):
     chunk_count: int = 0
     indexed: bool = False
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class ChatMessage(SQLModel, table=True):
+    """Persistent chat messages tied to a browser session_id."""
+    id: str = Field(default_factory=_uuid, primary_key=True)
+    session_id: str = Field(index=True)
+    role: str  # "user" | "assistant"
+    content: str
+    created_at: datetime = Field(default_factory=datetime.utcnow)

@@ -8,6 +8,20 @@
   const imageForm = document.getElementById("image-form");
 
   let history = []; // [{role, content}]
+  // Initialize history from server-provided session history (if any).
+  // Only render client-side if the messages container is empty (prevents duplicates
+  // when the server already rendered the messages/greeting).
+  try {
+    if (window.MANTIS_CHAT_HISTORY && Array.isArray(window.MANTIS_CHAT_HISTORY) && messagesEl.children.length === 0) {
+      history = window.MANTIS_CHAT_HISTORY.map(h => ({ role: h.role, content: h.content }));
+      // Render existing messages
+      for (const m of history) {
+        appendMsg({ role: m.role, content: m.content });
+      }
+    }
+  } catch (e) {
+    // ignore
+  }
 
   function escapeHtml(s) {
     return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -89,9 +103,29 @@
     await sendText(text);
   });
 
-  resetBtn.addEventListener("click", () => {
-    history = [];
-    messagesEl.innerHTML = "";
+  resetBtn.addEventListener("click", async (e) => {
+    e.preventDefault();
+    const ok = window.confirm("Clear this conversation? This will permanently delete the chat history for this browser session.");
+    if (!ok) return;
+    const prevText = resetBtn.textContent;
+    try {
+      resetBtn.disabled = true;
+      resetBtn.textContent = "Clearing…";
+      const res = await fetch('/api/chat/reset', { method: 'POST' });
+      if (res.ok) {
+        window.location.reload();
+        return;
+      }
+      const txt = await res.text();
+      console.error('reset failed', res.status, txt);
+      alert('Failed to reset chat');
+    } catch (err) {
+      console.error(err);
+      alert('Network error while resetting chat');
+    } finally {
+      resetBtn.disabled = false;
+      resetBtn.textContent = prevText;
+    }
   });
 
   if (imageForm) {

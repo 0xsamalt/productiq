@@ -1,8 +1,11 @@
 """Image-based troubleshooting — Gemma 3 multimodal."""
-from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException
+from uuid import uuid4
+
+from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import JSONResponse
 from sqlmodel import Session
 from ..db import get_session
-from ..models import Product
+from ..models import Product, ChatMessage
 from ..llm_service import chat_with_image
 from ..diagnostic_agent import SYSTEM_PROMPT
 from ..moss_service import query as moss_query
@@ -16,6 +19,7 @@ async def diagnose_image(
     note: str = Form(""),
     file: UploadFile = File(...),
     session: Session = Depends(get_session),
+    request: Request = None,
 ):
     product = session.get(Product, product_id)
     if not product:
@@ -69,8 +73,26 @@ async def diagnose_image(
         mode, reply = "ASK", reply[5:].lstrip(" :-")
     elif reply.upper().startswith("[DIAGNOSE]"):
         mode, reply = "DIAGNOSE", reply[10:].lstrip(" :-")
+    # Persist session-scoped chat messages (ensure session_id cookie)
+    session_id = None
+    if request is not None:
+        session_id = request.cookies.get("session_id")
+    new_cookie = False
+    if not session_id:
+        session_id = str(uuid4())
+        new_cookie = True
 
-    return {
+    # Save the user upload/note as a user message
+    user_msg = ChatMessage(session_id=session_id, role="user", content=f"[uploaded an image] {note}")
+    session.add(user_msg)
+    session.commit()
+
+    # Save assistant reply
+    assistant_msg = ChatMessage(session_id=session_id, role="assistant", content=reply)
+    session.add(assistant_msg)
+    session.commit()
+
+    payload = {
         "visible": visible,
         "reply": reply,
         "mode": mode,
@@ -84,3 +106,7 @@ async def diagnose_image(
             for c in chunks
         ],
     }
+    resp = JSONResponse(payload)
+    if new_cookie:
+        resp.set_cookie("session_id", session_id, httponly=True, samesite="lax")
+    return resp

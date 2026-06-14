@@ -1,10 +1,14 @@
 """Server-rendered HTML pages (Jinja)."""
 from typing import Optional
+from typing import Optional
+from uuid import uuid4
+
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
 from ..db import get_session
 from ..models import Product, Company, Document
+from ..models import ChatMessage
 
 router = APIRouter()
 
@@ -47,15 +51,35 @@ def product_page(product_id: str, request: Request, session: Session = Depends(g
     docs = session.exec(
         select(Document).where(Document.product_id == product_id).order_by(Document.created_at.desc())
     ).all()
-    return _templates(request).TemplateResponse(
+    # Ensure the user has a session_id cookie for chat persistence.
+    session_id = request.cookies.get("session_id")
+    new_cookie = False
+    if not session_id:
+        session_id = str(uuid4())
+        new_cookie = True
+
+    # Load chat history for this session (ordered oldest->newest)
+    chat_rows = session.exec(
+        select(ChatMessage).where(ChatMessage.session_id == session_id).order_by(ChatMessage.created_at.asc())
+    ).all()
+    chat_history = [
+        {"role": c.role, "content": c.content, "created_at": c.created_at.isoformat()}
+        for c in chat_rows
+    ]
+
+    resp = _templates(request).TemplateResponse(
         request,
         "product.html",
         {
             "product": product,
             "company": company,
             "docs": docs,
+            "chat_history": chat_history,
         },
     )
+    if new_cookie:
+        resp.set_cookie("session_id", session_id, httponly=True, samesite="lax")
+    return resp
 
 
 @router.get("/company", response_class=HTMLResponse)
