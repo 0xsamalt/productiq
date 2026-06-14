@@ -14,9 +14,24 @@ Built on **Moss** (sub-10ms in-process semantic search) and **Gemma 3 27B** (tex
 | Role | Where they work | What they do |
 |---|---|---|
 | **Company** | `/company/<id>` dashboard | Register, list products, upload manuals (PDF / text / images / external links / YouTube), see chunk counts per doc, delete products |
-| **End user** | `/` marketplace → `/p/<id>` | Browse + search products, chat with the diagnostic assistant in any language, upload photos of faults, download manuals, listen to spoken replies |
+| **End user** | `/` marketplace → `/p/<id>` | **Search the marketplace by name or category**, browse product cards, chat with the diagnostic assistant in any language, upload photos of faults, **view + download every manual** the manufacturer attached, **resume a previous conversation** (chat history persists across browser refreshes), listen to spoken replies |
 
 Both sides use the same Moss-backed knowledge base — the company **builds** it, the user **queries** it.
+
+### Marketplace search
+
+The `/` page has a real search box (icon-prefixed input + Search / Clear buttons). It filters products by `name` or `category` via a `?q=` query parameter using a `LIKE %q%` SQL match — results refresh server-side with the result count shown. Empty-state messaging adapts to whether the user is exploring vs. coming up empty on a specific search.
+
+### Manuals: view + download for end users
+
+The public product page (`/p/<id>`) lists every doc the manufacturer attached — PDFs, text/markdown, images, external links, YouTube videos — with:
+
+- A **kind badge** (`pdf` / `text` / `image` / `link` / `video`) for instant scanning
+- **Download button** (`GET /api/products/{id}/docs/{doc_id}`) that streams the original file from disk — for PDFs, images, and text uploads, the user gets the actual file the company uploaded
+- **Open ↗** link for external URLs (HTML pages, YouTube videos) — opens in a new tab, deep-links into the source
+- **Chunk count** on every indexed doc — so the user can see how much grounding material exists per source
+
+This satisfies the brief's *"Users can browse and download these materials from the product page"* requirement explicitly.
 
 ---
 
@@ -102,6 +117,8 @@ The system prompt classifies each message and skips the ASK loop for usage quest
 
 **Inline citations + pill rendering.** Every assistant message can carry up to 4 citation pills (source filename, page, optional URL). Hover shows the chunk text. The UI never lies about where information came from.
 
+**Persistent chat memory across sessions.** Every conversation is tied to a browser-scoped `session_id` cookie. Every user message and assistant reply (including image-diagnosis turns) is written to a `ChatMessage` table the moment it's exchanged. On page refresh, the server re-renders the entire history server-side so the chat is *there* before any JavaScript runs — no flicker, no "loading…", no client-side state to lose. A single click on the **Reset** button calls `/api/chat/reset`, which deletes the session's messages from the DB and clears the cookie. Effect: the user can close the tab, walk away, return tomorrow, and pick up the diagnostic thread exactly where they left it.
+
 ---
 
 ## 4. Image diagnosis — multimodal in one model
@@ -127,7 +144,7 @@ All five funnel into the same shared Moss index with `product_id` metadata. The 
 | **PDF manuals** | `pypdf` per-page extraction → section-aware recursive splitter (paragraph → line → sentence → word → char) → 1200-char chunks with 120-char overlap → page + section tagged | `manual.pdf p.4` |
 | **Text / Markdown** | Same chunker, no page dimension | `notes.md` |
 | **Images (company-side, e.g. scanned manual pages)** | Gemma 3 27B vision OCR with structured prompt (extract every label / error code / table row) → text → same chunker | `error-chart.png` |
-| **External HTML links** (FAQ, vendor docs, Wikipedia) | `httpx` fetch with browser UA → BeautifulSoup strips `<nav>`, `<script>`, `<style>`, `<footer>` → prefer `<main>` / `<article>` → cleaned text → same chunker → URL stamped on every chunk | `Wikipedia — Refrigerator` |
+| **External HTML links** (FAQ pages, vendor docs, support portals, Wikipedia, blog posts) | Company pastes a URL in the "…or paste a URL" form. Server does `httpx.get(url)` with a browser-like User-Agent, follows redirects, enforces a 2 MB cap and 30 s timeout. BeautifulSoup strips `<nav>`, `<script>`, `<style>`, `<footer>`, `<aside>`, `<form>`, `<iframe>`. Prefers `<main>` / `<article>` containers when present. Auto-extracts the page `<title>` to use as the source name if the company left the title blank. Cleaned text flows through the same section-aware chunker; every chunk carries the original URL in its metadata so citations can deep-link back. | `Wikipedia — Refrigerator` (clickable) |
 | **YouTube videos** | `youtube-transcript-api` pulls auto-captions → grouped into ~60-second windows (or ≤1200 chars) → each chunk tagged with `?t=<seconds>` URL anchor | `Philips airfryer video, 1:01` (clickable, jumps to that second) |
 
 ### Section-aware chunking (vs. naive char windows)
@@ -198,7 +215,7 @@ Server-rendered Jinja + Tailwind (CDN) + vanilla JS. No frameworks, no build ste
 
 ## 9. Data model
 
-Five SQLModel tables:
+Four SQLModel tables:
 
 ```python
 Company        id  name  email  created_at
@@ -207,8 +224,8 @@ Document       id  product_id  filename  kind  url  storage_path  chunk_count  i
 ChatMessage    id  session_id  role  content  created_at
 ```
 
-- `Document.kind` ∈ `{"pdf", "text", "image", "link", "video"}` — every ingestion path stamps this.
-- `ChatMessage` is keyed by a browser-side `session_id` cookie, so chat history persists per device and is restorable on page refresh (rendered server-side on first paint).
+- `Document.kind` ∈ `{"pdf", "text", "image", "link", "video"}` — every ingestion path stamps this so the UI can render kind-specific affordances (Download vs Open ↗) and the doc list shows the right metadata (page count, transcript timestamps, link target).
+- `ChatMessage` is keyed by a browser-side `session_id` cookie, so chat history persists per device and is restorable on page refresh (rendered server-side on first paint). `/api/chat/reset` deletes the session's rows and clears the cookie in one call.
 - Product delete cascades: Moss vectors (by metadata filter) → `Document` rows → storage files → `Product` row, in one route.
 
 ---
