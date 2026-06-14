@@ -1,11 +1,11 @@
 """Company + Product CRUD."""
 import shutil
 from pathlib import Path
-from fastapi import APIRouter, Depends, Form, HTTPException
+from fastapi import APIRouter, Depends, Form, HTTPException, Request
 from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from sqlmodel import Session, select
 from ..db import get_session
-from ..models import Company, Product, Document
+from ..models import Company, Product, Document, ChatMessage
 from ..config import settings
 from ..moss_service import ensure_shared_index, delete_product_docs
 
@@ -103,3 +103,21 @@ async def delete_product_form(product_id: str, session: Session = Depends(get_se
     company_id = product.company_id
     await _purge_product(product_id, session)
     return RedirectResponse(f"/company/{company_id}", status_code=303)
+
+
+@router.post("/chat/reset")
+async def reset_chat(request: Request, session: Session = Depends(get_session)):
+    """Delete all ChatMessage rows for the current session_id cookie."""
+    session_id = request.cookies.get("session_id")
+    if not session_id:
+        return JSONResponse({"status": "success", "message": "Chat history cleared"})
+
+    msgs = session.exec(select(ChatMessage).where(ChatMessage.session_id == session_id)).all()
+    for m in msgs:
+        session.delete(m)
+    session.commit()
+
+    resp = JSONResponse({"status": "success", "message": "Chat history cleared"})
+    # Clear the cookie in the browser
+    resp.delete_cookie("session_id")
+    return resp
