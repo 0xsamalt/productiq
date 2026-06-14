@@ -10,6 +10,7 @@ from ..models import Document, Product
 from ..config import settings
 from ..moss_service import add_chunks, ensure_shared_index
 from ..pdf_parser import parse_pdf, parse_text
+from ..llm_service import extract_text_from_image
 
 router = APIRouter()
 
@@ -62,7 +63,12 @@ async def upload_document(
     elif kind == "text":
         text = stored_path.read_text(encoding="utf-8", errors="ignore")
         chunks = parse_text(text, doc.id, doc.filename)
-    # images get attached as raw assets; not chunked here.
+    elif kind == "image":
+        # OCR via Gemma 3 vision so labels/diagrams/scanned pages are indexed.
+        mime = {"png": "image/png", "jpg": "image/jpeg", "jpeg": "image/jpeg"}.get(ext.lstrip(".").lower(), "image/png")
+        ocr_text = extract_text_from_image(stored_path.read_bytes(), image_mime=mime)
+        if ocr_text and ocr_text.upper() != "NO_TEXT_VISIBLE":
+            chunks = parse_text(ocr_text, doc.id, doc.filename)
 
     if chunks:
         await ensure_shared_index()

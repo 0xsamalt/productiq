@@ -24,17 +24,25 @@ async def diagnose_image(
     image_bytes = await file.read()
     mime = file.content_type or "image/png"
 
-    # Step 1 — let Gemma describe what it sees so we can retrieve relevant docs.
+    # Step 1 — describe with PRODUCT CONTEXT so the model interprets the
+    # image as a part of THIS product, not a generic visual lookalike.
+    # (e.g. a mixer-grinder motor compartment can look exactly like a light
+    # fixture from inside; without product context Gemma picks the wrong one.)
     description_prompt = (
-        "You are looking at a photo a user uploaded of their product issue. "
-        "In 1-2 sentences, describe what is visible: error codes, warning lights, "
-        "damaged components, part labels. Be concrete, no speculation."
+        f"You are looking at a photo a user uploaded showing an issue with their "
+        f"{product.name} ({product.category}). Product description: "
+        f"{product.description or '(none provided)'}.\n\n"
+        f"Assume the photo shows some part of THIS product (not a different device). "
+        f"In 2-3 sentences, describe concretely what is visible: error codes / warning "
+        f"lights / labels / damaged components / corrosion / disconnected wires / "
+        f"foreign material. If the image clearly does not show the product or any "
+        f"of its parts, say so explicitly."
     )
     visible = chat_with_image(
-        user_text=description_prompt + (f"\nUser also wrote: {note}" if note else ""),
+        user_text=description_prompt + (f"\n\nUser also wrote: {note}" if note else ""),
         image_bytes=image_bytes,
         image_mime=mime,
-        max_tokens=200,
+        max_tokens=250,
     ).strip()
 
     # Step 2 — retrieve from Moss using both the vision description and the user note.

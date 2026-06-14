@@ -48,6 +48,27 @@ def chat_stream(messages: list[dict], temperature: float = 0.2, max_tokens: int 
             yield delta
 
 
+def extract_text_from_image(image_bytes: bytes, image_mime: str = "image/png") -> str:
+    """OCR-style call: pull every visible text element out of an image of a
+    manual page, label, diagram, or chart. Used at company-upload time so
+    image-only documentation participates in retrieval."""
+    prompt = (
+        "Extract ALL visible text from this image — labels, error codes, table "
+        "contents, headings, captions, units, part numbers, warnings. Preserve "
+        "structure line by line. If the image has a table, render it with rows "
+        "on separate lines and columns separated by '|'. If a section is a "
+        "diagram with labels, list the labels. Return text only, no commentary, "
+        "no descriptions of layout. If there is no readable text in the image, "
+        "return exactly: NO_TEXT_VISIBLE."
+    )
+    return chat_with_image(
+        user_text=prompt,
+        image_bytes=image_bytes,
+        image_mime=image_mime,
+        max_tokens=1500,
+    ).strip()
+
+
 def chat_with_image(
     user_text: str,
     image_bytes: bytes,

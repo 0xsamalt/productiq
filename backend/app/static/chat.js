@@ -1,13 +1,22 @@
-// Diagnostic chat. Plain fetch + DOM; no framework.
+// Unified diagnostic chat: one input that supports text + optional image attachment.
+// If a file is attached → POST multipart to /diagnose-image (text becomes the note).
+// Otherwise → POST JSON to /diagnose with conversation history.
 (function () {
   const productId = window.MANTIS_PRODUCT_ID;
   const messagesEl = document.getElementById("messages");
   const form = document.getElementById("chat-form");
   const input = document.getElementById("chat-input");
   const resetBtn = document.getElementById("reset-btn");
-  const imageForm = document.getElementById("image-form");
+  const fileInput = document.getElementById("chat-file");
+  const attachmentRow = document.getElementById("attachment-preview");
+  const attachmentThumb = document.getElementById("attachment-thumb");
+  const attachmentName = document.getElementById("attachment-name");
+  const attachmentSize = document.getElementById("attachment-size");
+  const attachmentClear = document.getElementById("attachment-clear");
 
   let history = []; // [{role, content}]
+  let pendingFile = null; // File | null
+  let pendingDataUrl = null; // string | null
 
   function escapeHtml(s) {
     return s.replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
@@ -39,7 +48,7 @@
       imgHTML = `<img src="${image}" class="rounded mb-2 max-h-48 border border-zinc-200" />`;
     }
 
-    bubble.innerHTML = `${imgHTML}<div>${badge}<span>${escapeHtml(content)}</span></div>${citationsHTML(citations)}`;
+    bubble.innerHTML = `${imgHTML}<div>${badge}<span>${escapeHtml(content).replace(/\n/g, "<br/>")}</span></div>${citationsHTML(citations)}`;
     messagesEl.appendChild(bubble);
     messagesEl.scrollTop = messagesEl.scrollHeight;
   }
@@ -57,7 +66,34 @@
     if (el) el.remove();
   }
 
-  async function sendText(message) {
+  function clearAttachment() {
+    pendingFile = null;
+    pendingDataUrl = null;
+    fileInput.value = "";
+    attachmentRow.classList.add("hidden");
+  }
+
+  function showAttachment(file) {
+    pendingFile = file;
+    const reader = new FileReader();
+    reader.onload = () => {
+      pendingDataUrl = reader.result;
+      attachmentThumb.src = pendingDataUrl;
+      attachmentName.textContent = file.name;
+      attachmentSize.textContent = ` · ${(file.size / 1024).toFixed(0)} KB`;
+      attachmentRow.classList.remove("hidden");
+    };
+    reader.readAsDataURL(file);
+  }
+
+  fileInput.addEventListener("change", e => {
+    const f = e.target.files[0];
+    if (f) showAttachment(f);
+  });
+
+  attachmentClear.addEventListener("click", clearAttachment);
+
+  async function sendTextOnly(message) {
     history.push({ role: "user", content: message });
     appendMsg({ role: "user", content: message });
     appendTyping();
@@ -81,54 +117,56 @@
     }
   }
 
+  async function sendWithImage(message, file, dataUrl) {
+    const fd = new FormData();
+    fd.append("file", file);
+    fd.append("note", message || "");
+
+    appendMsg({ role: "user", content: message || "(attached an image)", image: dataUrl });
+    appendTyping();
+
+    try {
+      const res = await fetch(`/api/products/${productId}/diagnose-image`, {
+        method: "POST",
+        body: fd,
+      });
+      removeTyping();
+      if (!res.ok) {
+        appendMsg({ role: "assistant", content: `(error ${res.status}) ${await res.text()}` });
+        return;
+      }
+      const data = await res.json();
+      // Push BOTH the user's intent AND what the model saw into history,
+      // so subsequent text turns can reason about the image.
+      const userHist = `[image attached] ${message || "(no note)"}`;
+      const replyText = (data.visible ? `What I see in the image: ${data.visible}\n\n` : "") + (data.reply || "");
+      history.push({ role: "user", content: userHist });
+      history.push({ role: "assistant", content: replyText });
+      appendMsg({ role: "assistant", content: replyText, mode: data.mode, citations: data.citations });
+    } catch (e) {
+      removeTyping();
+      appendMsg({ role: "assistant", content: `(network error) ${e.message}` });
+    }
+  }
+
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
     const text = input.value.trim();
-    if (!text) return;
+    if (!text && !pendingFile) return;
     input.value = "";
-    await sendText(text);
+
+    if (pendingFile) {
+      const f = pendingFile, du = pendingDataUrl;
+      clearAttachment();
+      await sendWithImage(text, f, du);
+    } else {
+      await sendTextOnly(text);
+    }
   });
 
   resetBtn.addEventListener("click", () => {
     history = [];
     messagesEl.innerHTML = "";
+    clearAttachment();
   });
-
-  if (imageForm) {
-    imageForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const fd = new FormData(imageForm);
-      const file = fd.get("file");
-      const note = fd.get("note") || "";
-      if (!file || !file.size) return;
-
-      const dataUrl = await new Promise(r => {
-        const reader = new FileReader();
-        reader.onload = () => r(reader.result);
-        reader.readAsDataURL(file);
-      });
-      appendMsg({ role: "user", content: note || "(uploaded an image)", image: dataUrl });
-      history.push({ role: "user", content: `[uploaded an image] ${note}` });
-      appendTyping();
-      try {
-        const res = await fetch(`/api/products/${productId}/diagnose-image`, {
-          method: "POST",
-          body: fd,
-        });
-        removeTyping();
-        if (!res.ok) {
-          appendMsg({ role: "assistant", content: `(error ${res.status}) ${await res.text()}` });
-          return;
-        }
-        const data = await res.json();
-        const reply = (data.visible ? `What I see in the image: ${data.visible}\n\n` : "") + data.reply;
-        history.push({ role: "assistant", content: reply });
-        appendMsg({ role: "assistant", content: reply, mode: data.mode, citations: data.citations });
-      } catch (e) {
-        removeTyping();
-        appendMsg({ role: "assistant", content: `(network error) ${e.message}` });
-      }
-      imageForm.reset();
-    });
-  }
 })();
