@@ -85,10 +85,17 @@
           <div class="text-xs text-zinc-500 truncate">Grounded in {{ product.name }}'s manuals · Gemma 3 27B</div>
         </div>
       </div>
-      <button id="reset-btn" class="text-xs text-zinc-500 hover:text-brand inline-flex items-center gap-1">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
-        Reset
-      </button>
+      <div class="flex items-center gap-3">
+        <button id="speak-toggle" type="button" aria-pressed="false"
+                title="Read replies aloud"
+                class="text-xs text-zinc-500 hover:text-brand inline-flex items-center gap-1">
+          <span id="speak-icon">🔇</span><span>Speak</span>
+        </button>
+        <button id="reset-btn" class="text-xs text-zinc-500 hover:text-brand inline-flex items-center gap-1">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+          Reset
+        </button>
+      </div>
     </div>
 
     <div id="messages" class="flex-1 overflow-y-auto px-5 py-5 space-y-3 text-sm">
@@ -105,9 +112,13 @@
       {% endif %}
     </div>
 
-    <form id="chat-form" class="border-t border-zinc-200 p-3 flex gap-2">
+    <form id="chat-form" class="border-t border-zinc-200 p-3 flex gap-2 items-center">
       <input id="chat-input" type="text" autocomplete="off" placeholder="Describe the issue you're having…"
              class="flex-1 rounded-lg border border-zinc-200 px-3.5 py-2.5 text-sm focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+      <button id="mic-btn" type="button" title="Speak your issue"
+              class="shrink-0 h-10 w-10 rounded-lg border border-zinc-200 text-lg hover:border-brand hover:text-brand transition-colors">
+        🎤
+      </button>
       <button type="submit" class="bg-brand text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-brand-600 transition">
         Send
       </button>
