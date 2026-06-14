@@ -24,8 +24,14 @@ def product_page(product_id: str, request: Request, session: Session = Depends(g
     if not product:
         raise HTTPException(404, "Product not found")
     company = session.get(Company, product.company_id)
+    docs = session.exec(
+        select(Document)
+        .where(Document.product_id == product_id)
+        .order_by(Document.created_at.desc())
+    ).all()
     return _templates(request).TemplateResponse(
-        request, "product.html", {"product": product, "company": company},
+        request, "product.html",
+        {"product": product, "company": company, "docs": docs},
     )
 
 

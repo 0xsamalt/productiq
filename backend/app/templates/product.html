@@ -29,9 +29,32 @@
     </div>
 
     <div class="rounded-xl border border-zinc-200 bg-white p-5">
-      <h3 class="font-semibold mb-2">Product manuals</h3>
-      <p class="text-xs text-zinc-500">Uploaded by the manufacturer.</p>
-      <div class="text-xs text-zinc-400 mt-2">(listing endpoint TBD)</div>
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="font-semibold">Product manuals</h3>
+        <span class="text-xs text-zinc-500">{{ docs|length }} uploaded</span>
+      </div>
+      <p class="text-xs text-zinc-500 mb-3">Uploaded by the manufacturer — these ground every answer the assistant gives.</p>
+      {% if docs %}
+        <ul class="divide-y divide-zinc-100 text-sm">
+          {% for d in docs %}
+            <li class="py-2 flex items-center justify-between gap-2">
+              <div class="min-w-0">
+                <span class="inline-block text-[10px] uppercase tracking-wide bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded mr-2 align-middle">{{ d.kind }}</span>
+                {% if d.kind == "link" and d.url %}
+                  <a href="{{ d.url }}" target="_blank" rel="noopener" class="text-brand hover:underline truncate align-middle">{{ d.filename }}</a>
+                {% else %}
+                  <span class="truncate align-middle">{{ d.filename }}</span>
+                {% endif %}
+              </div>
+              <div class="text-xs text-zinc-500 whitespace-nowrap">
+                {% if d.indexed %}{{ d.chunk_count }} chunks{% else %}—{% endif %}
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="text-xs text-zinc-400">No manuals attached yet. The assistant will say so when asked.</div>
+      {% endif %}
     </div>
   </aside>
 
