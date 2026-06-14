@@ -17,6 +17,9 @@ pypdf>=5.0.0
 # YouTube transcript ingestion (extracts auto-captions for video links)
 youtube-transcript-api>=0.6.2
 
+# HTML extraction for external doc links
+beautifulsoup4>=4.12.0
+
 # image handling
 Pillow>=10.4.0
 
