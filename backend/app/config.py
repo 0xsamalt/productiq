@@ -12,6 +12,7 @@ class Settings:
 
     HF_TOKEN: str = os.getenv("HF_TOKEN", "")
     HF_LLM_MODEL: str = os.getenv("HF_LLM_MODEL", "google/gemma-3-12b-it")
+    HF_STT_MODEL: str = os.getenv("HF_STT_MODEL", "openai/whisper-large-v3")
     HF_INFERENCE_PROVIDER: str = os.getenv("HF_INFERENCE_PROVIDER", "auto")
 
     APP_HOST: str = os.getenv("APP_HOST", "0.0.0.0")

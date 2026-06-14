@@ -19,6 +19,27 @@ def _client() -> InferenceClient:
     )
 
 
+def transcribe(audio_bytes: bytes) -> str:
+    """Speech-to-text via HF Inference (Whisper). Server-side fallback for
+    browsers without the Web Speech API. English only.
+
+    Uses provider="hf-inference" explicitly: whisper-large-v3 is reliably
+    served there, whereas "auto" may route to a provider that lacks ASR.
+    """
+    if not settings.HF_TOKEN:
+        raise RuntimeError("HF_TOKEN missing. Set it in .env")
+    asr_client = InferenceClient(provider="hf-inference", api_key=settings.HF_TOKEN)
+    out = asr_client.automatic_speech_recognition(
+        audio_bytes,
+        model=settings.HF_STT_MODEL,
+    )
+    # InferenceClient returns an object with `.text` (newer hub) or a dict.
+    text = getattr(out, "text", None)
+    if text is None and isinstance(out, dict):
+        text = out.get("text", "")
+    return (text or "").strip()
+
+
 def chat(messages: list[dict], temperature: float = 0.2, max_tokens: int = 800) -> str:
     """Single-shot chat completion. Returns the assistant text."""
     resp = _client().chat.completions.create(

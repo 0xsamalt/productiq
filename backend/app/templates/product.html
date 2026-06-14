@@ -69,7 +69,14 @@
         <div class="font-semibold">Diagnostic Assistant</div>
         <div class="text-xs text-zinc-500">Grounded in {{ product.name }}'s official docs · powered by Gemma 3 12B</div>
       </div>
-      <button id="reset-btn" class="text-xs text-zinc-500 hover:text-brand">Reset</button>
+      <div class="flex items-center gap-3">
+        <button id="speak-toggle" type="button" aria-pressed="false"
+                title="Read replies aloud"
+                class="text-xs text-zinc-500 hover:text-brand flex items-center gap-1">
+          <span id="speak-icon">🔇</span><span>Speak</span>
+        </button>
+        <button id="reset-btn" class="text-xs text-zinc-500 hover:text-brand">Reset</button>
+      </div>
     </div>
 
     <div id="messages" class="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm"></div>
@@ -77,6 +84,8 @@
     <form id="chat-form" class="border-t border-zinc-200 p-3 flex gap-2">
       <input id="chat-input" type="text" autocomplete="off" placeholder="Describe the issue you're having…"
              class="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:border-brand" />
+      <button id="mic-btn" type="button" title="Speak your issue"
+              class="shrink-0 w-10 rounded-lg border border-zinc-300 text-lg hover:border-brand hover:text-brand transition-colors">🎤</button>
       <button type="submit" class="bg-brand text-white text-sm px-4 py-2 rounded-lg hover:bg-brand/90">Send</button>
     </form>
   </div>

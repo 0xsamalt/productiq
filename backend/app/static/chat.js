@@ -75,6 +75,7 @@
       const data = await res.json();
       history.push({ role: "assistant", content: data.reply });
       appendMsg({ role: "assistant", content: data.reply, mode: data.mode, citations: data.citations });
+      speakReply(data.reply);
     } catch (e) {
       removeTyping();
       appendMsg({ role: "assistant", content: `(network error) ${e.message}` });
@@ -124,6 +125,7 @@
         const reply = (data.visible ? `What I see in the image: ${data.visible}\n\n` : "") + data.reply;
         history.push({ role: "assistant", content: reply });
         appendMsg({ role: "assistant", content: reply, mode: data.mode, citations: data.citations });
+        speakReply(reply);
       } catch (e) {
         removeTyping();
         appendMsg({ role: "assistant", content: `(network error) ${e.message}` });
@@ -131,4 +133,143 @@
       imageForm.reset();
     });
   }
+
+  // ---------------------------------------------------------------------------
+  // Voice: spoken replies (TTS) + voice input (Web Speech API, Whisper fallback)
+  // English only for now.
+  // ---------------------------------------------------------------------------
+  const micBtn = document.getElementById("mic-btn");
+  const speakToggle = document.getElementById("speak-toggle");
+  const speakIcon = document.getElementById("speak-icon");
+
+  // --- Text-to-speech (spoken replies) ---
+  const tts = window.speechSynthesis || null;
+  let speakOn = false;
+
+  function speakReply(text) {
+    if (!speakOn || !tts || !text) return;
+    // Strip the leading visual labels so they aren't read aloud.
+    const clean = text.replace(/^\s*(ASK|DIAGNOSE)\s*[:\-]?\s*/i, "").trim();
+    tts.cancel(); // never overlap utterances
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = "en-US";
+    u.rate = 1.0;
+    tts.speak(u);
+  }
+
+  if (speakToggle) {
+    if (!tts) {
+      speakToggle.disabled = true;
+      speakToggle.title = "Speech synthesis not supported in this browser";
+      speakToggle.classList.add("opacity-40", "cursor-not-allowed");
+    } else {
+      speakToggle.addEventListener("click", () => {
+        speakOn = !speakOn;
+        speakToggle.setAttribute("aria-pressed", String(speakOn));
+        speakIcon.textContent = speakOn ? "🔊" : "🔇";
+        speakToggle.classList.toggle("text-brand", speakOn);
+        if (!speakOn) tts.cancel();
+      });
+    }
+  }
+
+  // --- Speech-to-text (voice input) ---
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  let listening = false;
+
+  function setMicState(on) {
+    listening = on;
+    if (!micBtn) return;
+    micBtn.textContent = on ? "⏹️" : "🎤";
+    micBtn.classList.toggle("text-red-600", on);
+    micBtn.classList.toggle("border-red-400", on);
+    micBtn.classList.toggle("animate-pulse", on);
+    micBtn.title = on ? "Stop listening" : "Speak your issue";
+  }
+
+  // Path A — native Web Speech API (Chrome/Edge): instant, no server round-trip.
+  function startWebSpeech() {
+    const rec = new SpeechRecognition();
+    rec.lang = "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+
+    let finalText = "";
+    rec.onresult = (e) => {
+      let interim = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        const t = e.results[i][0].transcript;
+        if (e.results[i].isFinal) finalText += t;
+        else interim += t;
+      }
+      input.value = (finalText + interim).trim();
+    };
+    rec.onerror = () => setMicState(false);
+    rec.onend = () => {
+      setMicState(false);
+      const text = input.value.trim();
+      if (text) { input.value = ""; sendText(text); }
+    };
+
+    setMicState(true);
+    rec.start();
+    // Allow tapping the mic again to stop early.
+    micBtn.onclick = () => { rec.stop(); micBtn.onclick = onMicClick; };
+  }
+
+  // Path B — MediaRecorder + server-side Whisper (Firefox/Safari/others).
+  let mediaRecorder = null;
+  let chunks = [];
+
+  async function startWhisper() {
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch {
+      appendMsg({ role: "assistant", content: "(microphone access was denied)" });
+      return;
+    }
+    chunks = [];
+    mediaRecorder = new MediaRecorder(stream);
+    mediaRecorder.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+    mediaRecorder.onstop = async () => {
+      stream.getTracks().forEach(t => t.stop());
+      setMicState(false);
+      const blob = new Blob(chunks, { type: mediaRecorder.mimeType || "audio/webm" });
+      if (!blob.size) return;
+      const prevPlaceholder = input.placeholder;
+      input.placeholder = "transcribing…";
+      try {
+        const fd = new FormData();
+        fd.append("file", blob, "speech.webm");
+        const res = await fetch("/api/transcribe", { method: "POST", body: fd });
+        input.placeholder = prevPlaceholder;
+        if (!res.ok) {
+          appendMsg({ role: "assistant", content: `(transcription error ${res.status})` });
+          return;
+        }
+        const { text } = await res.json();
+        if (text) sendText(text);
+        else appendMsg({ role: "assistant", content: "(couldn't catch that — try again)" });
+      } catch (e) {
+        input.placeholder = prevPlaceholder;
+        appendMsg({ role: "assistant", content: `(network error) ${e.message}` });
+      }
+    };
+    setMicState(true);
+    mediaRecorder.start();
+    micBtn.onclick = () => { mediaRecorder.stop(); micBtn.onclick = onMicClick; };
+  }
+
+  function onMicClick() {
+    if (listening) return;
+    if (SpeechRecognition) startWebSpeech();
+    else if (navigator.mediaDevices && window.MediaRecorder) startWhisper();
+    else appendMsg({ role: "assistant", content: "(voice input isn't supported in this browser)" });
+  }
+
+  if (micBtn) micBtn.onclick = onMicClick;
+
+  // Stop any speech when the conversation is reset.
+  if (resetBtn) resetBtn.addEventListener("click", () => { if (tts) tts.cancel(); });
 })();
