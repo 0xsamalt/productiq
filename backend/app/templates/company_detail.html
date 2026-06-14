@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}{{ company.name }} — MANTIS{% endblock %}
+{% block content %}
+<section class="mb-6">
+  <a href="/company" class="text-sm text-zinc-500 hover:text-brand">← Companies</a>
+  <h1 class="text-3xl font-bold tracking-tight mt-2">{{ company.name }}</h1>
+  <div class="text-sm text-zinc-500">{{ company.email }}</div>
+</section>
+
+<section class="grid lg:grid-cols-[1fr_2fr] gap-6">
+  <div class="rounded-xl border border-zinc-200 bg-white p-5 h-fit sticky top-4">
+    <h3 class="font-semibold mb-3">Add a product</h3>
+    <form action="/api/products" method="post" class="space-y-2">
+      <input type="hidden" name="company_id" value="{{ company.id }}" />
+      <input name="name" required placeholder="Product name" class="block w-full rounded border-zinc-300 px-3 py-2 text-sm" />
+      <input name="category" required placeholder="Category (Scooter, AC, …)" class="block w-full rounded border-zinc-300 px-3 py-2 text-sm" />
+      <textarea name="description" rows="3" placeholder="Short description" class="block w-full rounded border-zinc-300 px-3 py-2 text-sm"></textarea>
+      <button class="bg-brand text-white text-sm px-4 py-2 rounded hover:bg-brand/90 w-full">Create product</button>
+    </form>
+    <p class="text-xs text-zinc-500 mt-3">After creating, scroll right to upload manuals.</p>
+  </div>
+
+  <div>
+    <h3 class="font-semibold mb-3">Your products</h3>
+    {% if products %}
+      <div class="space-y-4">
+        {% for p in products %}
+          {% set docs = docs_by_product.get(p.id, []) %}
+          <div class="rounded-xl border border-zinc-200 bg-white p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <div class="text-xs uppercase tracking-wide text-zinc-500">{{ p.category }}</div>
+                <div class="text-lg font-semibold">{{ p.name }}</div>
+                {% if p.description %}<div class="text-sm text-zinc-600 mt-1">{{ p.description }}</div>{% endif %}
+              </div>
+              <div class="flex items-center gap-3 whitespace-nowrap">
+                <a href="/p/{{ p.id }}" class="text-sm text-brand hover:underline">View as user →</a>
+                <form action="/api/products/{{ p.id }}/delete" method="post"
+                      onsubmit="return confirm('Delete &quot;{{ p.name }}&quot; and all its manuals? This cannot be undone.');">
+                  <button type="submit" class="text-sm text-red-600 hover:text-red-700">Delete</button>
+                </form>
+              </div>
+            </div>
+
+            <!-- Upload form: always visible -->
+            <div class="mt-4 border-t border-zinc-100 pt-4">
+              <div class="flex items-center justify-between mb-2">
+                <h4 class="text-sm font-semibold">Manuals &amp; support docs</h4>
+                <span class="text-xs text-zinc-500">{{ docs|length }} uploaded</span>
+              </div>
+
+              <form method="post" enctype="multipart/form-data"
+                    action="/api/products/{{ p.id }}/upload"
+                    class="flex flex-wrap items-center gap-2 bg-zinc-50 border border-dashed border-zinc-300 rounded-lg p-3">
+                <input type="file" name="file" required
+                       accept=".pdf,.txt,.md,.png,.jpg,.jpeg"
+                       class="text-sm flex-1 min-w-[200px]" />
+                <button type="submit" class="bg-zinc-900 text-white text-sm px-4 py-2 rounded hover:bg-zinc-700">
+                  Upload &amp; index
+                </button>
+              </form>
+
+              <form method="post" action="/api/products/{{ p.id }}/upload-link"
+                    class="flex flex-wrap items-center gap-2 mt-2">
+                <input type="url" name="url" required placeholder="…or paste a URL (manual, FAQ, YouTube)"
+                       class="text-sm flex-1 min-w-[200px] rounded border-zinc-300 px-3 py-1.5" />
+                <input type="text" name="title" placeholder="Title (optional)"
+                       class="text-sm rounded border-zinc-300 px-3 py-1.5" />
+                <button type="submit" class="text-sm border border-zinc-300 px-3 py-1.5 rounded hover:bg-zinc-50">
+                  Attach link
+                </button>
+              </form>
+
+              {% if docs %}
+                <ul class="mt-3 divide-y divide-zinc-100 text-sm">
+                  {% for d in docs %}
+                    <li class="py-1.5 flex items-center justify-between gap-2">
+                      <div class="min-w-0">
+                        <span class="inline-block text-[10px] uppercase tracking-wide bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded mr-2">{{ d.kind }}</span>
+                        <span class="truncate">{{ d.filename }}</span>
+                      </div>
+                      <div class="text-xs text-zinc-500 whitespace-nowrap">
+                        {% if d.indexed %}{{ d.chunk_count }} chunks{% else %}—{% endif %}
+                      </div>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="text-xs text-zinc-500 mt-3">No manuals yet. Upload a PDF or paste a documentation link above.</p>
+              {% endif %}
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="rounded-xl border border-dashed border-zinc-300 p-6 text-sm text-zinc-500">
+        No products yet. Add one on the left.
+      </div>
+    {% endif %}
+  </div>
+</section>
+{% endblock %}
