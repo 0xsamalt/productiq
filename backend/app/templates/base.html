@@ -3,33 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>{% block title %}productiq — Assistant for Your Products{% endblock %}</title>
+  <title>{% block title %}PRODUCTIQ — Assistant for Your Products{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
-    tailwind.config = { theme: { extend: { colors: { brand: "#7B2FBE", accent: "#00C896" } } } }
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: { DEFAULT: "#7B2FBE", 50: "#f7f3ff", 100: "#ede1ff", 600: "#6a26a8", 700: "#56208a" },
+            accent: "#00C896",
+            ink: "#0f0f12",
+          },
+          fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'] },
+        }
+      }
+    }
   </script>
   <link rel="stylesheet" href="/static/app.css" />
 </head>
-<body class="min-h-screen bg-zinc-50 text-zinc-900">
-  <header class="border-b border-zinc-200 bg-white">
-    <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-      <a href="/" class="flex items-center gap-2">
-        <span class="text-xl font-bold tracking-tight">productiq</span>
+<body class="min-h-screen bg-zinc-50 text-ink antialiased font-sans">
+  <header class="sticky top-0 z-30 border-b border-zinc-200/80 bg-white/85 backdrop-blur">
+    <div class="max-w-6xl mx-auto px-6 py-3 flex items-center justify-between">
+      <a href="/" class="flex items-center gap-2.5 group">
+        <span class="inline-flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-brand to-brand-700 text-white font-bold text-sm shadow-sm">P</span>
+        <span class="text-lg font-semibold tracking-[0.04em]">PRODUCTIQ</span>
       </a>
-      <nav class="flex items-center gap-4 text-sm">
-        <a href="/" class="hover:text-brand">Marketplace</a>
-        <a href="/company" class="hover:text-brand">For Companies</a>
+      <nav class="flex items-center gap-1 text-sm">
+        {% set path = request.url.path %}
+        <a href="/" class="px-3 py-1.5 rounded-md {% if path == '/' or path.startswith('/p/') %}bg-brand-50 text-brand-700 font-medium{% else %}text-zinc-600 hover:bg-zinc-100{% endif %}">Marketplace</a>
+        <a href="/company" class="px-3 py-1.5 rounded-md {% if path.startswith('/company') %}bg-brand-50 text-brand-700 font-medium{% else %}text-zinc-600 hover:bg-zinc-100{% endif %}">For Companies</a>
       </nav>
     </div>
   </header>
 
-  <main class="max-w-6xl mx-auto px-6 py-8">
+  <main class="max-w-6xl mx-auto px-6 py-10">
     {% block content %}{% endblock %}
   </main>
 
-  <footer class="border-t border-zinc-200 mt-12">
-    <div class="max-w-6xl mx-auto px-6 py-6 text-xs text-zinc-500 flex justify-between">
-      <span>Built with Moss + Gemma 3 12B</span>
+  <footer class="border-t border-zinc-200 mt-16">
+    <div class="max-w-6xl mx-auto px-6 py-6 text-xs text-zinc-500 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      <span class="flex items-center gap-2">
+        <span class="inline-block h-1.5 w-1.5 rounded-full bg-accent animate-pulse"></span>
+        Built with Moss + Gemma 3 27B
+      </span>
       <span>PClub × MOSS · 24h hackathon</span>
     </div>
   </footer>

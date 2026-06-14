@@ -1,55 +1,68 @@
 {% extends "base.html" %}
-{% block title %}{{ product.name }} — productiq{% endblock %}
+{% block title %}{{ product.name }} — PRODUCTIQ{% endblock %}
 {% block content %}
-<section class="mb-6">
-  <a href="/" class="text-sm text-zinc-500 hover:text-brand">← Marketplace</a>
-  <div class="mt-2 flex items-start justify-between gap-4">
-    <div>
-      <div class="text-xs uppercase tracking-wide text-zinc-500">{{ product.category }}</div>
-      <h1 class="text-3xl font-bold tracking-tight">{{ product.name }}</h1>
+<section class="mb-8">
+  <a href="/" class="text-sm text-zinc-500 hover:text-brand inline-flex items-center gap-1">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
+    Marketplace
+  </a>
+  <div class="mt-3 flex items-start justify-between gap-4">
+    <div class="min-w-0">
+      <span class="cat-badge">{{ product.category }}</span>
+      <h1 class="mt-2 text-3xl sm:text-4xl font-bold tracking-tight">{{ product.name }}</h1>
       <div class="text-sm text-zinc-500 mt-1">by {{ company.name if company else "—" }}</div>
     </div>
   </div>
   {% if product.description %}
-    <p class="mt-3 text-zinc-700 max-w-3xl">{{ product.description }}</p>
+    <p class="mt-4 text-zinc-700 max-w-3xl leading-relaxed">{{ product.description }}</p>
   {% endif %}
 </section>
 
 <section class="grid lg:grid-cols-[1fr_2fr] gap-6">
   <!-- Left: docs + image upload -->
   <aside class="space-y-4">
-    <div class="rounded-xl border border-zinc-200 bg-white p-5">
-      <h3 class="font-semibold mb-2">Diagnose by photo</h3>
-      <p class="text-xs text-zinc-500 mb-3">Upload an image of the error screen, warning light, or damaged part.</p>
-      <form id="image-form" enctype="multipart/form-data">
-        <input type="file" name="file" accept="image/*" required class="block w-full text-sm mb-2" />
-        <input type="text" name="note" placeholder="(optional) what happened?" class="block w-full text-sm rounded border-zinc-300 px-2 py-1 mb-2" />
-        <button type="submit" class="bg-brand text-white text-sm px-3 py-1.5 rounded hover:bg-brand/90">Diagnose</button>
+    <div class="rounded-2xl border border-zinc-200 bg-white p-5">
+      <div class="flex items-center gap-2 mb-1.5">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#7B2FBE" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        <h3 class="font-semibold">Diagnose by photo</h3>
+      </div>
+      <p class="text-xs text-zinc-500 mb-3 leading-relaxed">Upload an image of the error screen, warning light, or damaged part. The assistant will inspect it.</p>
+      <form id="image-form" enctype="multipart/form-data" class="space-y-2">
+        <input type="file" name="file" accept="image/*" required
+               class="block w-full text-sm rounded-lg bg-zinc-50 border border-zinc-200 px-2 py-2" />
+        <input type="text" name="note" placeholder="(optional) what happened?"
+               class="block w-full text-sm rounded-lg border border-zinc-200 px-3 py-2 focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+        <button type="submit" class="bg-brand text-white text-sm font-medium px-4 py-2 rounded-lg hover:bg-brand-600 transition w-full">
+          Diagnose
+        </button>
       </form>
     </div>
 
-    <div class="rounded-xl border border-zinc-200 bg-white p-5">
-      <h3 class="font-semibold mb-2">Product manuals</h3>
-      <p class="text-xs text-zinc-500">Uploaded by the manufacturer.</p>
+    <div class="rounded-2xl border border-zinc-200 bg-white p-5">
+      <div class="flex items-center justify-between mb-1.5">
+        <h3 class="font-semibold">Product manuals</h3>
+        <span class="text-xs text-zinc-500">{{ docs|length }}</span>
+      </div>
+      <p class="text-xs text-zinc-500 mb-3">Uploaded by the manufacturer — these ground every answer.</p>
       {% if docs %}
-        <ul class="mt-3 divide-y divide-zinc-100 text-sm">
+        <ul class="divide-y divide-zinc-100 text-sm">
           {% for doc in docs %}
-            <li class="py-1.5 flex items-center justify-between gap-2">
-              <div class="min-w-0">
-                <span class="inline-block text-[10px] uppercase tracking-wide bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded mr-2">{{ doc.kind }}</span>
+            <li class="py-2.5 flex items-center justify-between gap-2">
+              <div class="min-w-0 flex items-center gap-2">
+                <span class="inline-block text-[10px] font-semibold uppercase tracking-wider bg-zinc-100 text-zinc-600 px-1.5 py-0.5 rounded">{{ doc.kind }}</span>
                 <span class="truncate text-zinc-900">{{ doc.filename }}</span>
               </div>
-              <div class="flex items-center gap-2">
+              <div class="flex items-center gap-2 shrink-0">
                 {% if doc.kind == 'link' %}
                   <a href="{{ doc.url }}" target="_blank" rel="noopener"
-                     class="text-xs text-brand hover:underline">Open link</a>
+                     class="text-xs text-brand hover:underline">Open ↗</a>
                 {% else %}
                   <a href="/api/products/{{ product.id }}/docs/{{ doc.id }}"
-                     class="inline-flex items-center rounded-full bg-brand px-3 py-1.5 text-xs font-medium text-white hover:bg-brand/90">
+                     class="inline-flex items-center rounded-full bg-brand-50 text-brand-700 px-3 py-1 text-xs font-medium hover:bg-brand-100 transition">
                     Download
                   </a>
                 {% endif %}
-                <span class="text-xs text-zinc-500 whitespace-nowrap">
+                <span class="text-[10px] text-zinc-400 whitespace-nowrap">
                   {% if doc.kind == 'link' %}link{% elif doc.indexed %}{{ doc.chunk_count }} chunks{% else %}—{% endif %}
                 </span>
               </div>
@@ -57,27 +70,31 @@
           {% endfor %}
         </ul>
       {% else %}
-        <p class="text-xs text-zinc-500 mt-3">No manuals yet. Upload a PDF or paste a documentation link above.</p>
+        <p class="text-xs text-zinc-500">No manuals yet.</p>
       {% endif %}
     </div>
   </aside>
 
   <!-- Right: chat -->
-  <div class="rounded-xl border border-zinc-200 bg-white flex flex-col min-h-[560px]">
-    <div class="border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
-      <div>
-        <div class="font-semibold">Diagnostic Assistant</div>
-        <div class="text-xs text-zinc-500">Grounded in {{ product.name }}'s official docs · powered by Gemma 3 12B</div>
+  <div class="rounded-2xl border border-zinc-200 bg-white flex flex-col min-h-[600px] shadow-sm">
+    <div class="border-b border-zinc-200 px-5 py-3.5 flex items-center justify-between">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="dot-live shrink-0"></span>
+        <div class="min-w-0">
+          <div class="font-semibold leading-tight">Diagnostic Assistant</div>
+          <div class="text-xs text-zinc-500 truncate">Grounded in {{ product.name }}'s manuals · Gemma 3 27B</div>
+        </div>
       </div>
-      <button id="reset-btn" class="text-xs text-zinc-500 hover:text-brand">Reset</button>
+      <button id="reset-btn" class="text-xs text-zinc-500 hover:text-brand inline-flex items-center gap-1">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><path d="M3 3v5h5"/></svg>
+        Reset
+      </button>
     </div>
 
-    <div id="messages" class="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm">
+    <div id="messages" class="flex-1 overflow-y-auto px-5 py-5 space-y-3 text-sm">
       {% if not chat_history %}
         <div class="rounded-lg p-3 msg-assistant">
-          <div>
-            <span>Hi! I am your Diagnostic Assistant. How can I help you troubleshoot your appliance today?</span>
-          </div>
+          <div><span>Hi! I'm your diagnostic assistant for the <strong>{{ product.name }}</strong>. Describe what's happening, or attach a photo of the issue — I'll narrow down the cause.</span></div>
         </div>
       {% else %}
         {% for m in chat_history %}
@@ -90,8 +107,10 @@
 
     <form id="chat-form" class="border-t border-zinc-200 p-3 flex gap-2">
       <input id="chat-input" type="text" autocomplete="off" placeholder="Describe the issue you're having…"
-             class="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:border-brand" />
-      <button type="submit" class="bg-brand text-white text-sm px-4 py-2 rounded-lg hover:bg-brand/90">Send</button>
+             class="flex-1 rounded-lg border border-zinc-200 px-3.5 py-2.5 text-sm focus:outline-none focus:border-brand focus:ring-2 focus:ring-brand/20" />
+      <button type="submit" class="bg-brand text-white text-sm font-medium px-5 py-2.5 rounded-lg hover:bg-brand-600 transition">
+        Send
+      </button>
     </form>
   </div>
 </section>

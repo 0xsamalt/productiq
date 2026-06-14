@@ -1,4 +1,6 @@
-/* Minimal extras on top of Tailwind CDN */
+/* productiq — minimal polish layer on top of Tailwind CDN */
+
+/* Chat bubbles */
 .msg-user {
   background: #f4f3ff;
   border-left: 3px solid #7B2FBE;
@@ -13,17 +15,83 @@
 .msg-diagnose {
   border-left: 3px solid #f59e0b;
 }
-.citation {
-  font-size: 11px;
-  color: #6b7280;
-}
+
+/* Citation pills */
 .cite-pill {
-  display: inline-block;
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  padding: 1px 6px;
+  display: inline-flex;
+  align-items: center;
+  background: #f5f3ff;
+  border: 1px solid #ede1ff;
+  padding: 2px 8px;
   border-radius: 9999px;
   margin: 2px 4px 0 0;
   font-size: 10px;
-  color: #374151;
+  font-weight: 500;
+  color: #56208a;
+  letter-spacing: 0.01em;
+}
+
+/* Subtle entrance on freshly-rendered chat bubbles */
+#messages > div {
+  animation: msg-in 180ms ease-out both;
+}
+@keyframes msg-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Capability pills on the marketplace hero */
+.cap-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 12px;
+  color: #3f3f46;
+  box-shadow: 0 1px 0 rgba(0,0,0,0.02);
+}
+.cap-pill svg { color: #7B2FBE; }
+
+/* Product card hover */
+.prod-card { transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease; }
+.prod-card:hover { transform: translateY(-2px); box-shadow: 0 8px 24px -12px rgba(123,47,190,0.18); border-color: #7B2FBE; }
+
+/* Category badge — brand-tinted */
+.cat-badge {
+  display: inline-flex;
+  align-items: center;
+  background: #f5f3ff;
+  color: #56208a;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 9999px;
+}
+
+/* File input — light cleanup so the native widget looks intentional */
+input[type="file"]::file-selector-button {
+  background: #fff;
+  border: 1px solid #d4d4d8;
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #3f3f46;
+  margin-right: 10px;
+  cursor: pointer;
+}
+input[type="file"]::file-selector-button:hover { background: #fafafa; }
+
+/* Status dot */
+.dot-live {
+  display: inline-block;
+  width: 6px; height: 6px;
+  border-radius: 9999px;
+  background: #00C896;
+  box-shadow: 0 0 0 2px rgba(0,200,150,0.18);
 }

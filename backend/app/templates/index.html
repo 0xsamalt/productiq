@@ -1,56 +1,100 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="mb-10">
-  <h1 class="text-4xl font-bold tracking-tight">Find an answer about your product.</h1>
-  <p class="mt-3 text-zinc-600 max-w-2xl">
-    Every product on productiq has its own diagnostic assistant trained on the manufacturer's official manuals.
-    Ask it like you would ask a technician — it will narrow down the cause by elimination.
-  </p>
+<section class="relative mb-12 overflow-hidden rounded-3xl border border-zinc-200 bg-gradient-to-br from-white via-brand-50 to-white px-8 py-12">
+  <div class="absolute -top-24 -right-24 h-72 w-72 rounded-full bg-brand/10 blur-3xl"></div>
+  <div class="relative max-w-3xl">
+    <span class="inline-flex items-center gap-2 text-xs font-medium uppercase tracking-widest text-brand-700">
+      <span class="dot-live"></span> Live diagnostic platform
+    </span>
+    <h1 class="mt-3 text-4xl sm:text-5xl font-bold tracking-tight text-ink">
+      Find an answer about your product.
+    </h1>
+    <p class="mt-4 text-zinc-600 max-w-2xl leading-relaxed">
+      Every product on PRODUCTIQ has its own diagnostic assistant trained on the manufacturer's official manuals.
+      Ask it like you would ask a technician — it narrows the cause down by elimination.
+    </p>
+
+    <div class="mt-6 flex flex-wrap gap-2">
+      <span class="cap-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg>
+        Grounded in official docs
+      </span>
+      <span class="cap-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        Cites every answer
+      </span>
+      <span class="cap-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+        Diagnoses photos too
+      </span>
+      <span class="cap-pill">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Safety-aware
+      </span>
+    </div>
+  </div>
 </section>
 
 <section class="mb-6">
-  <form method="GET" action="" class="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
+  <form method="GET" action="" class="mb-8 flex flex-col gap-3 sm:flex-row sm:items-center">
     <label for="search-q" class="sr-only">Search products</label>
-    <input
-      id="search-q"
-      name="q"
-      type="search"
-      value="{{ q if q else '' }}"
-      placeholder="Search products by name or category"
-      class="min-w-0 flex-1 rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-900 shadow-sm focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20"
-    />
+    <div class="relative min-w-0 flex-1">
+      <svg class="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>
+      </svg>
+      <input
+        id="search-q"
+        name="q"
+        type="search"
+        value="{{ q if q else '' }}"
+        placeholder="Search products by name or category"
+        class="w-full rounded-xl border border-zinc-200 bg-white pl-10 pr-4 py-2.5 text-sm text-zinc-900 shadow-sm focus:border-brand focus:outline-none focus:ring-4 focus:ring-brand/15 transition"
+      />
+    </div>
     <div class="flex gap-2">
-      <button
-        type="submit"
-        class="inline-flex items-center justify-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand/90"
-      >
+      <button type="submit"
+              class="inline-flex items-center justify-center rounded-xl bg-brand px-5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-600 transition">
         Search
       </button>
       {% if q %}
-        <a
-          href="/"
-          class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm text-zinc-700 hover:bg-zinc-50"
-        >
+        <a href="/"
+           class="inline-flex items-center justify-center rounded-xl border border-zinc-200 bg-white px-5 py-2.5 text-sm text-zinc-700 hover:bg-zinc-50 transition">
           Clear
         </a>
       {% endif %}
     </div>
   </form>
 
-  <h2 class="text-lg font-semibold mb-4">Products on productiq</h2>
+  <div class="flex items-baseline justify-between mb-4">
+    <h2 class="text-lg font-semibold">Products on PRODUCTIQ</h2>
+    {% if products %}
+      <span class="text-xs text-zinc-500">{{ products|length }} listed{% if q %} for “{{ q }}”{% endif %}</span>
+    {% endif %}
+  </div>
+
   {% if products %}
     <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
       {% for p in products %}
-        <a href="/p/{{ p.id }}" class="block rounded-xl border border-zinc-200 bg-white p-5 hover:border-brand hover:shadow-md transition">
-          <div class="text-xs uppercase tracking-wide text-zinc-500">{{ p.category }}</div>
-          <div class="mt-1 text-lg font-semibold">{{ p.name }}</div>
-          <div class="mt-2 text-sm text-zinc-600 line-clamp-3">{{ p.description }}</div>
+        <a href="/p/{{ p.id }}" class="prod-card block rounded-2xl border border-zinc-200 bg-white p-5">
+          <span class="cat-badge">{{ p.category }}</span>
+          <div class="mt-3 text-lg font-semibold leading-tight">{{ p.name }}</div>
+          {% if p.description %}
+            <div class="mt-2 text-sm text-zinc-600 line-clamp-3 leading-relaxed">{{ p.description }}</div>
+          {% endif %}
+          <div class="mt-4 flex items-center gap-2 text-xs text-brand-700">
+            Open assistant
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>
+          </div>
         </a>
       {% endfor %}
     </div>
   {% else %}
-    <div class="rounded-xl border border-dashed border-zinc-300 p-8 text-center text-zinc-500">
-      No products yet. <a href="/company" class="text-brand font-medium">List one as a company →</a>
+    <div class="rounded-2xl border border-dashed border-zinc-300 p-10 text-center text-zinc-500">
+      {% if q %}
+        No products match “{{ q }}”. <a href="/" class="text-brand font-medium">Clear search →</a>
+      {% else %}
+        No products yet. <a href="/company" class="text-brand font-medium">List one as a company →</a>
+      {% endif %}
     </div>
   {% endif %}
 </section>
