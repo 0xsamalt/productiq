@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}{{ product.name }} — MANTIS{% endblock %}
+{% block content %}
+<section class="mb-6">
+  <a href="/" class="text-sm text-zinc-500 hover:text-brand">← Marketplace</a>
+  <div class="mt-2 flex items-start justify-between gap-4">
+    <div>
+      <div class="text-xs uppercase tracking-wide text-zinc-500">{{ product.category }}</div>
+      <h1 class="text-3xl font-bold tracking-tight">{{ product.name }}</h1>
+      <div class="text-sm text-zinc-500 mt-1">by {{ company.name if company else "—" }}</div>
+    </div>
+  </div>
+  {% if product.description %}
+    <p class="mt-3 text-zinc-700 max-w-3xl">{{ product.description }}</p>
+  {% endif %}
+</section>
+
+<section class="grid lg:grid-cols-[1fr_2fr] gap-6">
+  <!-- Left: docs + image upload -->
+  <aside class="space-y-4">
+    <div class="rounded-xl border border-zinc-200 bg-white p-5">
+      <h3 class="font-semibold mb-2">Diagnose by photo</h3>
+      <p class="text-xs text-zinc-500 mb-3">Upload an image of the error screen, warning light, or damaged part.</p>
+      <form id="image-form" enctype="multipart/form-data">
+        <input type="file" name="file" accept="image/*" required class="block w-full text-sm mb-2" />
+        <input type="text" name="note" placeholder="(optional) what happened?" class="block w-full text-sm rounded border-zinc-300 px-2 py-1 mb-2" />
+        <button type="submit" class="bg-brand text-white text-sm px-3 py-1.5 rounded hover:bg-brand/90">Diagnose</button>
+      </form>
+    </div>
+
+    <div class="rounded-xl border border-zinc-200 bg-white p-5">
+      <h3 class="font-semibold mb-2">Product manuals</h3>
+      <p class="text-xs text-zinc-500">Uploaded by the manufacturer.</p>
+      <div class="text-xs text-zinc-400 mt-2">(listing endpoint TBD)</div>
+    </div>
+  </aside>
+
+  <!-- Right: chat -->
+  <div class="rounded-xl border border-zinc-200 bg-white flex flex-col min-h-[560px]">
+    <div class="border-b border-zinc-200 px-5 py-3 flex items-center justify-between">
+      <div>
+        <div class="font-semibold">Diagnostic Assistant</div>
+        <div class="text-xs text-zinc-500">Grounded in {{ product.name }}'s official docs · powered by Gemma 3 12B</div>
+      </div>
+      <button id="reset-btn" class="text-xs text-zinc-500 hover:text-brand">Reset</button>
+    </div>
+
+    <div id="messages" class="flex-1 overflow-y-auto px-5 py-4 space-y-3 text-sm"></div>
+
+    <form id="chat-form" class="border-t border-zinc-200 p-3 flex gap-2">
+      <input id="chat-input" type="text" autocomplete="off" placeholder="Describe the issue you're having…"
+             class="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm focus:outline-none focus:border-brand" />
+      <button type="submit" class="bg-brand text-white text-sm px-4 py-2 rounded-lg hover:bg-brand/90">Send</button>
+    </form>
+  </div>
+</section>
+
+<script>
+  window.MANTIS_PRODUCT_ID = "{{ product.id }}";
+</script>
+<script src="/static/chat.js"></script>
+{% endblock %}
