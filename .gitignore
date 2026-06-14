@@ -1,0 +1,36 @@
+# secrets
+**/.env
+**/.env.local
+*.key
+*.pem
+
+# python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# data / runtime artifacts
+backend/storage/
+backend/uploads/
+backend/*.db
+backend/*.db-journal
+backend/*.sqlite
+backend/*.sqlite3
+
+# logs
+*.log
+logs/
+
+# editor
+.vscode/
+.idea/
+.DS_Store
+
+# legacy
+src/
