@@ -6,7 +6,7 @@ from pathlib import Path
 
 from .config import settings
 from .db import init_db
-from .routes import products, upload, diagnose, image as image_route, pages, audio
+from .routes import products, upload, diagnose, image as image_route, pages, audio, health
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -32,6 +32,7 @@ app.include_router(upload.router, prefix="/api")
 app.include_router(diagnose.router, prefix="/api")
 app.include_router(image_route.router, prefix="/api")
 app.include_router(audio.router, prefix="/api")
+app.include_router(health.router, prefix="/api")
 
 
 @app.get("/healthz")

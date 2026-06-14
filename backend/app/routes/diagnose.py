@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from sqlmodel import Session
 from ..db import get_session
-from ..models import Product, ChatMessage
+from ..models import Product, ChatMessage, DiagnosticEvent
 from ..diagnostic_agent import diagnose as run_diagnose
 
 router = APIRouter()
@@ -57,6 +57,22 @@ async def diagnose_endpoint(
     # Persist the assistant's reply
     assistant_msg = ChatMessage(session_id=session_id, role="assistant", content=result.get("reply", ""))
     session.add(assistant_msg)
+
+    # Capture an analytics event for the Product Health Score. The agent emits a
+    # fixed "I don't have manual coverage" line when retrieval was empty/unrelated;
+    # treat that (or a missing/weak citation set) as a documentation gap.
+    citations = result.get("citations") or []
+    top_score = max((c.get("score") or 0.0 for c in citations), default=0.0)
+    reply_text = (result.get("reply") or "").lower()
+    had_coverage = bool(citations) and "don't have manual coverage" not in reply_text
+    session.add(DiagnosticEvent(
+        product_id=product.id,
+        session_id=session_id,
+        user_message=body.message,
+        mode=result.get("mode", "UNKNOWN"),
+        had_coverage=had_coverage,
+        top_score=float(top_score),
+    ))
     session.commit()
 
     resp = JSONResponse(result)

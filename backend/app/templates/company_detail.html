@@ -100,6 +100,22 @@
                 <p class="text-xs text-zinc-500 mt-3">No manuals yet. Upload a PDF or paste a documentation link above.</p>
               {% endif %}
             </div>
+
+            <!-- Product Health Score -->
+            <div class="mt-5 border-t border-zinc-100 pt-4">
+              <div class="flex items-center justify-between mb-2.5">
+                <h4 class="text-sm font-semibold flex items-center gap-1.5">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" class="text-brand"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                  Product health
+                </h4>
+                <button type="button" data-refresh-health="{{ p.id }}"
+                        class="text-xs border border-zinc-200 px-3 py-1.5 rounded-lg hover:bg-zinc-50 transition inline-flex items-center gap-1.5">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 4v6h-6M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0020.49 15"/></svg>
+                  <span>Refresh insights</span>
+                </button>
+              </div>
+              <div id="health-{{ p.id }}" class="text-sm"></div>
+            </div>
           </div>
         {% endfor %}
       </div>
@@ -110,4 +126,7 @@
     {% endif %}
   </div>
 </section>
+
+<script>window.__INSIGHTS__ = {{ insights_by_product | tojson }};</script>
+<script src="/static/health.js"></script>
 {% endblock %}

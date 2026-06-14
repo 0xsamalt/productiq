@@ -6,9 +6,12 @@ from uuid import uuid4
 from fastapi import APIRouter, Request, Depends, HTTPException
 from fastapi.responses import HTMLResponse
 from sqlmodel import Session, select
+import json
+
 from ..db import get_session
 from ..models import Product, Company, Document
 from ..models import ChatMessage
+from .. import health_service
 
 router = APIRouter()
 
@@ -97,11 +100,30 @@ def company_detail(company_id: str, request: Request, session: Session = Depends
         raise HTTPException(404, "Company not found")
     products = session.exec(select(Product).where(Product.company_id == company_id)).all()
     docs_by_product: dict[str, list[Document]] = {}
+    insights_by_product: dict[str, dict] = {}
     for p in products:
         docs_by_product[p.id] = session.exec(
             select(Document).where(Document.product_id == p.id).order_by(Document.created_at.desc())
         ).all()
+        ins = health_service.load_insight(session, p.id)
+        if ins is not None:
+            insights_by_product[p.id] = {
+                "health_score": ins.health_score,
+                "grade": ins.grade,
+                "breakdown": json.loads(ins.breakdown_json or "{}"),
+                "summary": ins.summary,
+                "top_issues": json.loads(ins.top_issues_json or "[]"),
+                "coverage_gaps": json.loads(ins.coverage_gaps_json or "[]"),
+                "trend": ins.trend,
+                "sample_size": ins.sample_size,
+                "computed_at": ins.computed_at.isoformat() if ins.computed_at else None,
+            }
     return _templates(request).TemplateResponse(
         request, "company_detail.html",
-        {"company": company, "products": products, "docs_by_product": docs_by_product},
+        {
+            "company": company,
+            "products": products,
+            "docs_by_product": docs_by_product,
+            "insights_by_product": insights_by_product,
+        },
     )
