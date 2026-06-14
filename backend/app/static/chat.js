@@ -1,6 +1,6 @@
 // Diagnostic chat. Plain fetch + DOM; no framework.
 (function () {
-  const productId = window.MANTIS_PRODUCT_ID;
+  const productId = window.PRODUCTIQ_PRODUCT_ID;
   const messagesEl = document.getElementById("messages");
   const form = document.getElementById("chat-form");
   const input = document.getElementById("chat-input");
@@ -12,8 +12,8 @@
   // Only render client-side if the messages container is empty (prevents duplicates
   // when the server already rendered the messages/greeting).
   try {
-    if (window.MANTIS_CHAT_HISTORY && Array.isArray(window.MANTIS_CHAT_HISTORY) && messagesEl.children.length === 0) {
-      history = window.MANTIS_CHAT_HISTORY.map(h => ({ role: h.role, content: h.content }));
+    if (window.PRODUCTIQ_CHAT_HISTORY && Array.isArray(window.PRODUCTIQ_CHAT_HISTORY) && messagesEl.children.length === 0) {
+      history = window.PRODUCTIQ_CHAT_HISTORY.map(h => ({ role: h.role, content: h.content }));
       // Render existing messages
       for (const m of history) {
         appendMsg({ role: m.role, content: m.content });
