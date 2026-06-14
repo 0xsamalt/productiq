@@ -2,7 +2,7 @@
 import shutil
 from pathlib import Path
 from fastapi import APIRouter, Depends, Form, HTTPException
-from fastapi.responses import RedirectResponse, JSONResponse
+from fastapi.responses import RedirectResponse, JSONResponse, FileResponse
 from sqlmodel import Session, select
 from ..db import get_session
 from ..models import Company, Product, Document
@@ -79,6 +79,19 @@ async def delete_product(product_id: str, session: Session = Depends(get_session
         raise HTTPException(404, "Product not found")
     await _purge_product(product_id, session)
     return JSONResponse({"ok": True})
+
+
+@router.get("/products/{product_id}/docs/{doc_id}")
+async def download_product_document(product_id: str, doc_id: str, session: Session = Depends(get_session)):
+    document = session.get(Document, doc_id)
+    if not document or document.product_id != product_id:
+        raise HTTPException(404, "Document not found")
+    if not document.storage_path:
+        raise HTTPException(404, "Document file not available")
+    file_path = Path(document.storage_path)
+    if not file_path.exists():
+        raise HTTPException(404, "Document file not found on disk")
+    return FileResponse(path=str(file_path), filename=document.filename, media_type="application/octet-stream")
 
 
 @router.post("/products/{product_id}/delete")
