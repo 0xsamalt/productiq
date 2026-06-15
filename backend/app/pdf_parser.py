@@ -127,18 +127,63 @@ def _chunk_section(heading: str | None, body: str) -> list[str]:
     return chunks
 
 
+def _render_page_to_png(path: Path, page_num_0indexed: int, dpi: int = 180) -> bytes:
+    """Render one PDF page to PNG bytes via PyMuPDF (no system deps).
+    Used only on scanned/image-only PDFs as an OCR fallback path."""
+    import pymupdf  # local import — heavy dep, only loaded when we actually need OCR
+    doc = pymupdf.open(str(path))
+    try:
+        page = doc.load_page(page_num_0indexed)
+        zoom = dpi / 72.0
+        pix = page.get_pixmap(matrix=pymupdf.Matrix(zoom, zoom), alpha=False)
+        return pix.tobytes("png")
+    finally:
+        doc.close()
+
+
+def _ocr_pdf_pages(path: Path, page_count: int) -> dict[int, str]:
+    """Run Gemma 3 vision OCR on every page that pypdf couldn't read.
+    Returns {page_num_1indexed: extracted_text}."""
+    # Avoid circular import: llm_service uses huggingface_hub which is fine to import lazily.
+    from .llm_service import extract_text_from_image
+    out: dict[int, str] = {}
+    for p in range(page_count):
+        try:
+            png = _render_page_to_png(path, p)
+        except Exception:
+            continue
+        try:
+            text = extract_text_from_image(png, image_mime="image/png")
+        except Exception:
+            continue
+        if text and text.upper() != "NO_TEXT_VISIBLE":
+            out[p + 1] = text
+    return out
+
+
 def parse_pdf(path: Path, document_id: str, source_name: str) -> list[dict]:
-    """Return Moss-ready chunks: {id, text, metadata{source,page,section,chunk}}."""
+    """Return Moss-ready chunks: {id, text, metadata{source,page,section,chunk}}.
+
+    Tries pypdf text extraction first. If the PDF has NO text layer (scanned /
+    image-only) AND has pages, falls back to per-page Gemma 3 vision OCR.
+    """
     reader = PdfReader(str(path))
-    out: list[dict] = []
+    page_texts: dict[int, str] = {}
     for page_num, page in enumerate(reader.pages, start=1):
         try:
             raw = page.extract_text() or ""
         except Exception:
             raw = ""
         text = _norm_ws(raw)
-        if not text:
-            continue
+        if text:
+            page_texts[page_num] = text
+
+    # OCR fallback: text-less PDF, but it has pages → likely a scanned doc.
+    if not page_texts and len(reader.pages) > 0:
+        page_texts = _ocr_pdf_pages(path, len(reader.pages))
+
+    out: list[dict] = []
+    for page_num, text in sorted(page_texts.items()):
         for sec_idx, (heading, body) in enumerate(_group_by_heading(text)):
             if not body.strip():
                 continue
