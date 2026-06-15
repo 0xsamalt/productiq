@@ -181,7 +181,7 @@ All five funnel into the same shared Moss index with `product_id` metadata. The 
 
 | Source | Ingestion | Citation rendering |
 |---|---|---|
-| **PDF manuals** | `pypdf` per-page extraction → section-aware recursive splitter (paragraph → line → sentence → word → char) → 1200-char chunks with 120-char overlap → page + section tagged | `manual.pdf p.4` |
+| **PDF manuals** | `pypdf` per-page extraction → section-aware recursive splitter (paragraph → line → sentence → word → char) → 1200-char chunks with 120-char overlap → page + section tagged. **Auto-OCR fallback**: if pypdf returns zero text (scanned / image-only PDF), every page is rendered to PNG via PyMuPDF and OCRed with Gemma 3 vision, then chunked the same way — *any* PDF becomes searchable, even photographed manual scans. | `manual.pdf p.4` |
 | **Text / Markdown** | Same chunker, no page dimension | `notes.md` |
 | **Images (company-side, e.g. scanned manual pages)** | Gemma 3 27B vision OCR with structured prompt (extract every label / error code / table row) → text → same chunker | `error-chart.png` |
 | **External HTML links** (FAQ pages, vendor docs, support portals, Wikipedia, blog posts) | Company pastes a URL in the "…or paste a URL" form. Server does `httpx.get(url)` with a browser-like User-Agent, follows redirects, enforces a 2 MB cap and 30 s timeout. BeautifulSoup strips `<nav>`, `<script>`, `<style>`, `<footer>`, `<aside>`, `<form>`, `<iframe>`. Prefers `<main>` / `<article>` containers when present. Auto-extracts the page `<title>` to use as the source name if the company left the title blank. Cleaned text flows through the same section-aware chunker; every chunk carries the original URL in its metadata so citations can deep-link back. | `Wikipedia — Refrigerator` (clickable) |
@@ -283,7 +283,7 @@ ProductInsight  id  product_id  health_score  grade  breakdown_json  summary  to
 | LLM | **Gemma 3 27B-IT** (text + vision) via HF Inference Providers | Multimodal in **one** model — no separate vision API, no OCR pipeline. 140-language support gets multilingual for free. Cheap on a hackathon budget. |
 | STT (voice fallback) | **Whisper large-v3** via `provider="hf-inference"` | Whisper is the de facto open ASR; HF Inference serves it reliably; only kicks in for browsers without Web Speech. |
 | TTS | **Browser `speechSynthesis`** | Zero backend cost, zero latency, works offline. |
-| PDF | **pypdf** | Pure-Python, no native deps; we own the chunker on top. |
+| PDF | **pypdf** (text layer) + **PyMuPDF** (page rasterizer) | Pure-Python, no native deps. pypdf reads any normal PDF; PyMuPDF kicks in only for scanned PDFs where pypdf finds no text — those pages get rendered to PNG and OCRed by Gemma vision. |
 | HTML | **BeautifulSoup + httpx** | Lightweight; we strip chrome explicitly so retrieval gets clean text. |
 | YouTube | **youtube-transcript-api** | Pulls existing captions — no Whisper transcription cost, no API key. |
 | Frontend | **Jinja + Tailwind CDN + vanilla JS** | Zero build step, hard-refresh-friendly cache-busting, total page weight ~minimal. |
