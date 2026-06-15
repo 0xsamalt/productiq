@@ -13,7 +13,7 @@ Built on **Moss** (sub-10ms in-process semantic search) and **Gemma 3 27B** (tex
 
 | Role | Where they work | What they do |
 |---|---|---|
-| **Company** | `/company/<id>` dashboard | Register, list products, upload manuals (PDF / text / images / external links / YouTube), see chunk counts per doc, delete products |
+| **Company** | `/company/<id>` dashboard | Register, list products, upload manuals (PDF / text / images / external links / YouTube), see chunk counts per doc, delete products, **read a per-product Health Score** — top issues, documentation gaps & trends mined from real diagnostic chats |
 | **End user** | `/` marketplace → `/p/<id>` | **Search the marketplace by name or category**, browse product cards, chat with the diagnostic assistant in any language, upload photos of faults, **view + download every manual** the manufacturer attached, **resume a previous conversation** (chat history persists across browser refreshes), listen to spoken replies |
 
 Both sides use the same Moss-backed knowledge base — the company **builds** it, the user **queries** it.
@@ -45,7 +45,8 @@ This satisfies the brief's *"Users can browse and download these materials from 
                     │  ├─ routes/upload.py      PDF / text / image / link / video ingestion
                     │  ├─ routes/diagnose.py    text chat (multilingual)
                     │  ├─ routes/image.py       multimodal vision-aware diagnosis
-                    │  └─ routes/audio.py       voice input (Whisper STT)
+                    │  ├─ routes/audio.py       voice input (Whisper STT)
+                    │  └─ routes/health.py      product health score + issue insights
                     └──────┬──────────────────────┬────────────────┘
                            │                      │
               ┌────────────▼────────┐   ┌─────────▼─────────────────┐
@@ -121,7 +122,46 @@ The system prompt classifies each message and skips the ASK loop for usage quest
 
 ---
 
-## 4. Image diagnosis — multimodal in one model
+## 4. Product Health Score — insights for the manufacturer
+
+The diagnostic chat isn't only a support tool — it's a continuous stream of real-world failure reports. ProductIQ mines that stream into a per-product **Health Score** so manufacturers can see what's actually breaking, where their documentation falls short, and whether problems are trending up. No reviews, ratings, or ticket forms to fill in — every signal comes from conversations users were already having with the assistant.
+
+### How it's captured
+
+Every `/diagnose` turn writes a `DiagnosticEvent`: the user's reported issue, the resolved mode (`ASK` / `DIAGNOSE`), whether the manuals actually covered it (citations present and no canonical no-docs fallback), and the top retrieval score. Zero extra user effort, zero new UI on the end-user side — the analytics fall out of conversations that already happen.
+
+### The score (0–100)
+
+On demand — the company clicks **Refresh insights** — ProductIQ recomputes a composite score and caches it. Four weighted components:
+
+| Component | Weight | Signal |
+|---|---|---|
+| **Coverage** | 30% | Share of reported issues the manuals actually answered → exposes documentation gaps |
+| **Resolution** | 30% | Share of conversations (per session) that reached a confident `[DIAGNOSE]` |
+| **Severity** | 25% | Frequency-weighted severity of issue themes (LLM-labeled high / medium / low) |
+| **Trend** | 15% | Last-30-day vs prior-30-day issue volume — rising problems pull the score down |
+
+Below 5 conversations the numeric score is withheld (statistically meaningless) but the raw signals still render. The number maps to a grade: **Excellent** (≥85) · **Good** (≥70) · **Fair** (≥50) · **At risk** (below).
+
+### The insights
+
+Alongside the number, Gemma clusters the raw issue reports into themes — counts and doc-gap rates derived in code, not trusted to the model — and surfaces:
+
+- **Top reported issues** — ranked by frequency, each with a severity pill and an example verbatim report (e.g. *Charging Issues · high · 5×*).
+- **Documentation gaps** — issue themes the manuals didn't cover for most reports: exactly what the company should document next.
+- **Narrative summary** — a 2-3 sentence health readout written for the manufacturer.
+
+### Where it lives
+
+On the company dashboard (`/company/<id>`), inside each product card: a score badge + grade, four breakdown bars, the ranked issues, and the doc-gap panel. Computed on-demand and cached in a `ProductInsight` row (one per product), so every dashboard load reads it cheaply. `POST /api/products/{id}/insights/refresh` recomputes; `GET /api/products/{id}/insights` reads the cache.
+
+### Graceful degradation
+
+The numeric score and breakdown bars are pure arithmetic over `DiagnosticEvent` rows — they render with no external calls. Only the issue clustering and summary need an LLM call; if it fails, the score still computes from coverage, resolution and trend, with clustering quietly skipped rather than 500-ing the dashboard.
+
+---
+
+## 5. Image diagnosis — multimodal in one model
 
 End users upload a phone photo of their faulty product (dashboard light, burnt fuse, corroded wires, error screen) directly from the chat UI. The flow:
 
@@ -135,7 +175,7 @@ No separate OCR, no separate vision model — one Gemma call per step, multimoda
 
 ---
 
-## 5. Knowledge sources — five flavors, one pipeline
+## 6. Knowledge sources — five flavors, one pipeline
 
 All five funnel into the same shared Moss index with `product_id` metadata. The diagnostic loop doesn't care where a chunk came from — only that it's tagged with the right product.
 
@@ -166,7 +206,7 @@ Fuse F3 (10A) protects the horn and indicator circuits...
 
 ---
 
-## 6. Multilingual — works in any of Gemma's 140 languages
+## 7. Multilingual — works in any of Gemma's 140 languages
 
 A user types in Hindi, Tamil, Spanish, or English — same flow, no extra config:
 
@@ -186,7 +226,7 @@ Image-description step uses the same trick — if the user's note alongside the 
 
 ---
 
-## 7. Voice — input and output
+## 8. Voice — input and output
 
 **Voice input** — 🎤 button next to the chat input:
 - **Chrome / Edge:** Web Speech API runs in-browser. Instant, no server round-trip, no API cost.
@@ -199,7 +239,7 @@ Hands-free use case from the brief — *"places phone nearby while repairing a s
 
 ---
 
-## 8. UI / UX
+## 9. UI / UX
 
 Server-rendered Jinja + Tailwind (CDN) + vanilla JS. No frameworks, no build step. The whole interactive surface is one HTML file per page plus one `chat.js`.
 
@@ -213,24 +253,27 @@ Server-rendered Jinja + Tailwind (CDN) + vanilla JS. No frameworks, no build ste
 
 ---
 
-## 9. Data model
+## 10. Data model
 
-Four SQLModel tables:
+Six SQLModel tables:
 
 ```python
-Company        id  name  email  created_at
-Product        id  company_id  name  category  description  image_url  created_at
-Document       id  product_id  filename  kind  url  storage_path  chunk_count  indexed  created_at
-ChatMessage    id  session_id  role  content  created_at
+Company         id  name  email  created_at
+Product         id  company_id  name  category  description  image_url  created_at
+Document        id  product_id  filename  kind  url  storage_path  chunk_count  indexed  created_at
+ChatMessage     id  session_id  role  content  created_at
+DiagnosticEvent id  product_id  session_id  user_message  mode  had_coverage  top_score  created_at
+ProductInsight  id  product_id  health_score  grade  breakdown_json  summary  top_issues_json  coverage_gaps_json  trend  sample_size  computed_at
 ```
 
 - `Document.kind` ∈ `{"pdf", "text", "image", "link", "video"}` — every ingestion path stamps this so the UI can render kind-specific affordances (Download vs Open ↗) and the doc list shows the right metadata (page count, transcript timestamps, link target).
 - `ChatMessage` is keyed by a browser-side `session_id` cookie, so chat history persists per device and is restorable on page refresh (rendered server-side on first paint). `/api/chat/reset` deletes the session's rows and clears the cookie in one call.
+- `DiagnosticEvent` logs one row per diagnostic turn — the analytics signal behind the Product Health Score (§4). `ProductInsight` caches the computed score + clustered issues per product (one row each), recomputed on demand so the dashboard reads it cheaply.
 - Product delete cascades: Moss vectors (by metadata filter) → `Document` rows → storage files → `Product` row, in one route.
 
 ---
 
-## 10. Stack — and why each pick
+## 11. Stack — and why each pick
 
 | Layer | Pick | Why |
 |---|---|---|
@@ -247,7 +290,7 @@ ChatMessage    id  session_id  role  content  created_at
 
 ---
 
-## 11. Running it
+## 12. Running it
 
 ```bash
 git clone https://github.com/0xsamalt/productiq
@@ -265,7 +308,7 @@ bash run.sh        # auto-detects conda (anaconda3 / miniconda3 / miniforge3 / /
 
 ---
 
-## 12. The four-line summary
+## 13. The four-line summary
 
 ProductIQ turns every product manual into a **technician** — not a chatbot.
 
