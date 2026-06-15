@@ -9,6 +9,22 @@ Built on **Moss** (sub-10ms in-process semantic search) and **Gemma 3 27B** (tex
 
 ---
 
+## MOSS Hack 2026 — submission
+
+| | |
+|---|---|
+| **Team** | chaggi gang |
+| **Members** | Daksh · Shyam · Yash · Rishav |
+| **Project** | ProductIQ |
+| **Repository** | https://github.com/0xsamalt/productiq |
+| **One-liner** | A per-product diagnostic assistant grounded in the manufacturer's manuals — technician behaviour, citation-backed answers, multimodal, multilingual, voice-capable. |
+
+### Project overview (TL;DR)
+
+A real platform that solves the brief end-to-end. Companies onboard their products and upload any kind of documentation — PDFs, text, scanned manual pages, FAQ URLs, even YouTube tutorials. End users land on the product page, ask a question (typed, spoken, or with a photo of the fault), and the assistant runs the brief's full 8-step diagnostic protocol — eliminating causes by ASKing one focused question at a time, then DIAGNOSing with an inline citation back to the source page or video timestamp. Every answer is grounded in the manufacturer's docs; the model is structurally prevented from fabricating times, temperatures, or part numbers that aren't in retrieved chunks. A safety override blocks unsafe inspection steps when a user reports fire / smoke / shock symptoms. Companies see a manufacturer-facing **Product Health Score** computed from the diagnostic stream — exposing recurring issues and documentation gaps with zero extra effort from users.
+
+---
+
 ## 1. The two-sided platform
 
 | Role | Where they work | What they do |
@@ -308,7 +324,65 @@ bash run.sh        # auto-detects conda (anaconda3 / miniconda3 / miniforge3 / /
 
 ---
 
-## 13. The four-line summary
+## 13. Usage guide
+
+A walkthrough of a real session, end-to-end.
+
+**As a company (5 minutes):**
+
+1. Open `http://localhost:8000/company` → enter company name + email → "Continue".
+2. On the dashboard, fill **Add a product** (name, category, short description) → "Create product".
+3. In the product card, **drag a PDF / paste a URL / paste a YouTube link / drop a photo of a manual page** into the "Manuals & support docs" area. Each upload shows a chunk count when indexing finishes (the assistant now has that material to reason from).
+4. Optional: click **Refresh insights** on the Product Health panel once a few users have used the assistant.
+5. Click **View as user →** to see the public product page.
+
+**As an end user:**
+
+1. Open `http://localhost:8000/` → see the marketplace. Use the **search box** to filter by product name or category.
+2. Click a product card → land on the product page (chat + manuals sidebar).
+3. **Type a question** like *"my mixer is making a grinding noise"* → assistant replies with `[ASK]` (one elimination question) or `[DIAGNOSE]` (committed answer + citation pill).
+4. **Attach a photo** via the "Diagnose by photo" panel: pick an image (warning light, damaged part, error code on a display), optionally add a note, hit Diagnose → multimodal answer.
+5. **Speak** via the 🎤 mic button instead of typing.
+6. Toggle the 🔊 **Speak** switch in the chat header to have the assistant read replies aloud.
+7. **Switch language** — type the question in Hindi / Spanish / etc. — the assistant replies in the same language; retrieval still works against the English manual.
+8. **Download** any manual from the "Product manuals" panel; open external links / YouTube videos in a new tab.
+9. **Close the tab and come back later** — the chat history is restored from the server.
+
+---
+
+## 14. Screenshots
+
+> Drop the screenshots into `docs/screenshots/` and link them here. Reasonable shots to capture:
+>
+> - Marketplace home with the gradient hero + capability pills + product grid
+> - Product page mid-conversation showing an `[ASK]` turn with citation pills underneath
+> - Image-diagnosis flow — chat showing the uploaded photo + multimodal `[DIAGNOSE]`
+> - A safety-override response (e.g. user wrote *"there's smoke"*) — agent immediately tells them to stop using
+> - Company dashboard with a product card showing the Product Health Score + top issues + doc gaps
+> - The same chat replying in Hindi or another non-English language
+> - The 🎤 / 🔊 toggles in the chat header
+
+---
+
+## 15. Demo video
+
+> Replace with the actual link:
+>
+> **Demo:** *(paste YouTube / Loom / Drive URL here)*
+>
+> Suggested 2-minute script for the recording:
+>
+> 1. (0:00) Marketplace → search "mixer" → click a product
+> 2. (0:15) Type *"my mixer just stopped grinding"* → show ASK question
+> 3. (0:30) Answer the follow-up → DIAGNOSE with citation pill linking back to the PDF page
+> 4. (0:50) Attach a photo of a corroded mixer base → multimodal diagnosis
+> 5. (1:10) Type *"मेरी मिक्सी से जलने की बदबू आ रही है"* → safety override in Hindi
+> 6. (1:30) Click 🎤 → speak a question → spoken reply with TTS
+> 7. (1:45) Switch to company dashboard → "Refresh insights" → show Health Score + top issues
+
+---
+
+## 16. The four-line summary
 
 ProductIQ turns every product manual into a **technician** — not a chatbot.
 
